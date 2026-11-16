@@ -1,0 +1,167 @@
+; DankDash (DMS DDashPopout): drops from the bar under the clock.
+; Tabs: Overview (clock, weather, calendar, media, notifications), Media,
+; Wallpapers, Weather. Persistent: built once, then only revealed.
+
+(deflisten walls :initial '{"items":[],"current":""}' "exec dmr listen walls")
+
+(defwindow dash []
+  :geometry (geometry :anchor "top center" :y "4px")
+  :stacking "overlay" :exclusive false :focusable "none" :namespace "dmr-dash"
+  (revealer :transition "slidedown" :reveal {ui.dash} :duration "250ms"
+    (box :class "popout dashp" :orientation "v" :space-evenly false
+      (eventbox :onscroll "dmr dash-tab-scroll {}"
+        (box :class "dash-tabs" :space-evenly true
+          (dash-tab :i 0 :icon "dashboard" :label "Overview")
+          (dash-tab :i 1 :icon "music_note" :label "Media")
+          (dash-tab :i 2 :icon "wallpaper" :label "Wallpapers")
+          (dash-tab :i 3 :icon "wb_sunny" :label "Weather")))
+      (stack :selected {ui.dashTab} :transition "crossfade" :same-size false
+        (dash-overview)
+        (dash-media)
+        (dash-walls)
+        (dash-weather)))))
+
+(defwidget dash-tab [i icon label]
+  (eventbox :cursor "pointer" :onclick "dmr dash-tab ${i}"
+    (box :class "dash-tab ${ui.dashTab == i ? 'active' : ''}" :orientation "v" :space-evenly false
+      (box :class "dash-tab-chip" :halign "center"
+        (icon :name icon :size 20 :fill {ui.dashTab == i}))
+      (label :class "dash-tab-label" :text label))))
+
+; ---------------------------------------------------------------- overview
+(defwidget dash-overview []
+  (box :class "dash-overview" :space-evenly false :spacing 8
+    (box :orientation "v" :space-evenly false :spacing 8 :class "dash-col"
+      (box :space-evenly false :spacing 8
+        (box :class "card clock-card" :hexpand true
+          (label :class "big-clock" :text {clock.hm}))
+        (eventbox :cursor "pointer" :onclick "dmr dash-tab 3"
+          (box :class "card weather-card" :orientation "v" :space-evenly false
+            (icon :name {info.weather.available ? info.weather.icon : "progress_activity"} :size 40 :class "weather-card-icon")
+            (label :class "weather-card-text" :xalign 0
+                   :text {info.weather.available ? info.weather.temp : "No Weather"}))))
+      (dash-calendar)
+      (dash-media-card))
+    (dash-notifs)))
+
+(defwidget dash-calendar []
+  (box :class "card cal" :orientation "v" :space-evenly false
+    (box :class "cal-head" :space-evenly false
+      (button :class "cal-nav" :onclick "dmr cal prev" (icon :name "chevron_left" :size 18))
+      (label :class "cal-title" :hexpand true :text {info.cal.title})
+      (button :class "cal-nav" :onclick "dmr cal today" (icon :name "calendar_today" :size 16))
+      (button :class "cal-nav" :onclick "dmr cal next" (icon :name "chevron_right" :size 18)))
+    (box :class "cal-dow" :space-evenly true
+      (label :text "Mon") (label :text "Tue") (label :text "Wed") (label :text "Thu")
+      (label :text "Fri") (label :text "Sat") (label :text "Sun"))
+    (box :orientation "v" :space-evenly false :spacing 4
+      (for week in {info.cal.weeks}
+        (box :class "cal-week" :space-evenly true :spacing 4
+          (for d in week
+            (box :class "cal-day ${d.today ? 'today' : ''} ${d.cur ? '' : 'other'}"
+              (label :text {d.d}))))))))
+
+(defwidget dash-media-card []
+  (eventbox :cursor "pointer" :onclick "dmr dash-tab 1"
+    (box :class "card media-card" :space-evenly false
+      (box :visible {!media.available} :hexpand true :orientation "v" :space-evenly false :valign "center"
+        (icon :name "music_note" :size 28 :fill true :class "c-primary media-none-icon")
+        (label :class "media-none" :text "No Media"))
+      (box :visible {media.available} :hexpand true :space-evenly false :spacing 12
+        (box :class "media-art-sm" :style "background-image: url('${media.art}');"
+          (box :visible {media.art == ""} :class "media-art-ph" (icon :name "music_note" :size 28)))
+        (box :orientation "v" :space-evenly false :valign "center" :hexpand true
+          (label :class "media-title" :xalign 0 :limit-width 26 :text {media.title})
+          (label :class "media-artist" :xalign 0 :limit-width 30 :text {media.artist}))
+        (box :space-evenly false :valign "center"
+          (button :class "media-btn" :onclick "dmr media previous" (icon :name "skip_previous" :fill true :size 22))
+          (button :class "media-btn play" :onclick "dmr media play-pause" (icon :name {media.playing ? "pause" : "play_arrow"} :fill true :size 22))
+          (button :class "media-btn" :onclick "dmr media next" (icon :name "skip_next" :fill true :size 22)))))))
+
+(defwidget dash-notifs []
+  (box :class "card notif-col" :orientation "v" :space-evenly false
+    (scroll :vscroll true :hscroll false :vexpand true
+      (box :orientation "v" :space-evenly false :spacing 6
+        (box :visible {arraylength(notifs.groups) == 0} :class "notif-empty" :orientation "v" :space-evenly false :vexpand true :valign "center"
+          (icon :name "notifications_none" :size 40 :class "c-variant")
+          (label :class "notif-empty-text" :text "Nothing to see here"))
+        (for g in {notifs.groups}
+          (notif-group :g g))))
+    (notif-footer)))
+
+; ---------------------------------------------------------------- media
+(defwidget dash-media []
+  (box :class "dash-page" :orientation "v" :space-evenly false
+    (box :visible {!media.available} :vexpand true :valign "center" :orientation "v" :space-evenly false :class "media-empty"
+      (label :class "media-empty-face" :text "^-ᴗ-^ ᶻ z")
+      (label :class "media-empty-text" :text "No media found."))
+    (box :visible {media.available} :space-evenly false :spacing 24 :class "media-full"
+      (box :class "media-art-lg" :style "background-image: url('${media.art}');"
+        (box :visible {media.art == ""} :class "media-art-ph" (icon :name "album" :size 72)))
+      (box :orientation "v" :space-evenly false :hexpand true :valign "center"
+        (label :class "media-big-title" :xalign 0 :limit-width 30 :text {media.title})
+        (label :class "media-big-artist" :xalign 0 :limit-width 36 :text {media.artist})
+        (label :class "media-big-album" :xalign 0 :limit-width 40 :text {media.album ?: ""})
+        ; Position ticks (mpos) only while this tab is on screen and playing.
+        (scale :class "media-progress" :min 0 :max {mpos.len > 0 ? mpos.len : 1}
+               :value {mpos.pos} :onchange "dmr media seek-to {}")
+        (box :class "media-times" :space-evenly false
+          (label :class "media-time" :xalign 0 :hexpand true :text {mpos.pt})
+          (label :class "media-time" :text {mpos.lt}))
+        (box :class "media-ctl" :space-evenly false :halign "center" :spacing 16
+          (button :class "media-btn" :onclick "dmr media previous" (icon :name "skip_previous" :fill true :size 28))
+          (button :class "media-btn play big" :onclick "dmr media play-pause" (icon :name {media.playing ? "pause" : "play_arrow"} :fill true :size 32))
+          (button :class "media-btn" :onclick "dmr media next" (icon :name "skip_next" :fill true :size 28)))
+        (label :class "media-player" :text {media.identity ?: ""})))))
+
+; ---------------------------------------------------------------- wallpapers
+(defwidget dash-walls []
+  (box :class "dash-page" :orientation "v" :space-evenly false
+    (box :visible {arraylength(walls.items) == 0} :vexpand true :valign "center" :orientation "v" :space-evenly false
+      (icon :name "hide_image" :size 40 :class "c-variant")
+      (label :class "notif-empty-text" :text "No wallpapers in ~/Pictures/Wallpapers"))
+    (scroll :vscroll true :hscroll false :vexpand true
+      (box :class "walls-grid" :orientation "v" :space-evenly false :spacing 12
+        (for row in {[0, 4, 8, 12, 16, 20]}
+          (box :space-evenly false :spacing 12 :visible {arraylength(walls.items) > row}
+            (for w in {jq(walls.items, ".[${row}:${row + 4}]")}
+              (eventbox :cursor "pointer" :onclick "dmr wallpaper idx ${w.i}"
+                (box :class "wall ${w.current ? 'current' : ''}" :style "background-image: url('${w.thumb}');")))))))
+    (box :class "walls-foot" :orientation "v" :space-evenly false :halign "center"
+      (box :space-evenly false :spacing 16 :halign "center"
+        (button :class "cal-nav" :onclick "dmr wallpaper random" (icon :name "shuffle" :size 18))
+        (button :class "cal-nav" :onclick "dmr exec xdg-open ~/Pictures/Wallpapers" (icon :name "folder_open" :size 18))
+        (button :class "cal-nav" :onclick "dmr close; dmr launcher set '>wallpaper '; dmr open launcher" (icon :name "search" :size 18)))
+      (label :class "walls-name" :text {walls.current}))))
+
+; ---------------------------------------------------------------- weather
+(defwidget dash-weather []
+  (box :class "dash-page" :orientation "v" :space-evenly false
+    (box :visible {!info.weather.available} :vexpand true :valign "center" :orientation "v" :space-evenly false :class "weather-empty"
+      (icon :name "cloud_off" :size 32)
+      (label :class "weather-empty-title" :text "No weather data available")
+      (label :class "weather-empty-sub" :text "Set services.weatherLocation (or allow geolocation) — dmr config set services.weatherLocation \"City\""))
+    (box :visible {info.weather.available} :orientation "v" :space-evenly false :spacing 16 :class "weather-full"
+      (box :space-evenly false :spacing 20 :halign "center"
+        (icon :name {info.weather.icon} :size 72 :class "c-primary")
+        (box :orientation "v" :space-evenly false :valign "center"
+          (label :class "weather-big" :xalign 0 :text {info.weather.temp})
+          (label :class "weather-desc" :xalign 0 :text "${info.weather.desc}${info.weather.city != '' ? ' · ' + info.weather.city : ''}")))
+      (box :class "weather-stats" :space-evenly true :spacing 8
+        (weather-stat :icon "thermostat" :label "Feels like" :value {info.weather.feels ?: "--"})
+        (weather-stat :icon "humidity_percentage" :label "Humidity" :value {info.weather.humidity ?: "--"})
+        (weather-stat :icon "air" :label "Wind" :value {info.weather.wind ?: "--"})
+        (weather-stat :icon "wb_twilight" :label "Sunrise" :value {info.weather.sunrise ?: "--"})
+        (weather-stat :icon "bedtime" :label "Sunset" :value {info.weather.sunset ?: "--"}))
+      (box :class "weather-days" :space-evenly true :spacing 8
+        (for d in {info.weather.days}
+          (box :class "card weather-day" :orientation "v" :space-evenly false
+            (label :class "weather-day-name" :text {d.day ?: ""})
+            (icon :name {d.icon ?: "cloud"} :size 28 :class "c-primary")
+            (label :class "weather-day-temp" :text "${d.max ?: ''} / ${d.min ?: ''}")))))))
+
+(defwidget weather-stat [icon label value]
+  (box :class "card weather-stat" :orientation "v" :space-evenly false
+    (icon :name icon :size 20 :class "c-primary")
+    (label :class "weather-stat-label" :text label)
+    (label :class "weather-stat-value" :text value)))

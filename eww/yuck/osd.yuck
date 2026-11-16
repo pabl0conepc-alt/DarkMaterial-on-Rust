@@ -1,0 +1,18 @@
+; OSD (DMS VolumeOSD / BrightnessOSD): bottom centre, icon circle + slider +
+; device icon. Hovering keeps it open; it hides after osd.hideDelay.
+(defwindow osd []
+  :geometry (geometry :anchor "bottom center" :y "16px")
+  :stacking "overlay" :exclusive false :focusable "none" :namespace "dmr-osd"
+  (eventbox :onhover "dmr hover osd" :onhoverlost "dmr unhover osd"
+    (revealer :transition "crossfade" :reveal {ui.osd} :duration "180ms"
+      (box :class "osd-box" :space-evenly false :spacing 8
+        (box :visible {ui.osdKind == "volume"} :space-evenly false :spacing 8
+          (button :class "osd-icon" :onclick "dmr volume mute"
+            (icon :name {status.audio.icon} :size 22 :fill true))
+          (scale :class "dank-slider osd-scale" :min 0 :max 101 :value {status.audio.vol} :onchange "dmr volume set {}")
+          (icon :name "speaker" :size 20 :class "osd-dev"))
+        (box :visible {ui.osdKind == "brightness"} :space-evenly false :spacing 8
+          (box :class "osd-icon"
+            (icon :name "brightness_6" :size 22 :fill true))
+          (scale :class "dank-slider osd-scale" :min 0 :max 101 :value {status.bright.pct} :onchange "dmr brightness set {}")
+          (label :class "osd-pct" :text "${status.bright.pct}%"))))))

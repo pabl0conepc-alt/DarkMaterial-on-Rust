@@ -1,0 +1,31 @@
+; Live data from the daemon. Each listener is one tiny `dmr listen` process
+; (std-only, ~0.6 MiB); values are pushed only when they change.
+(deflisten wm :initial '{"connected":false,"workspaces":[],"activeIdx":-1,"activeName":"","window":{"title":"Desktop","app":"","appName":"","appIcon":"","icon":"desktop_windows","id":0},"windowCount":0}'
+  "exec dmr listen wm")
+(deflisten status :initial '{"audio":{"available":false,"vol":0,"muted":false,"icon":"volume_up","micVol":0,"micMuted":false,"micIcon":"mic","sink":"","source":"","sinks":[],"sources":[]},"bright":{"available":false,"pct":0,"icon":"brightness_medium"},"bat":{"present":false,"pct":0,"charging":false,"icon":"battery_full","time":"","profile":"","profiles":[],"caps":false,"num":false,"onAc":true,"power":0},"net":{"available":false,"wifiEnabled":false,"type":"none","connected":false,"name":"","strength":0,"icon":"wifi_off","networks":[],"scanning":false,"vpn":null,"vpnActive":false},"bt":{"available":false,"powered":false,"icon":"bluetooth_disabled","connected":0,"devices":[],"discovering":false},"kb":{"layout":"","short":""},"dnd":false,"idleInhibit":false,"gamemode":false,"night":false}'
+  "exec dmr listen status")
+(deflisten media :initial '{"available":false,"title":"No media","artist":"","album":"","art":"","playing":false,"len":0,"pos":0,"ts":0,"players":[],"identity":"","canNext":false,"canPrev":false}'
+  "exec dmr listen media")
+(deflisten notifs :initial '{"count":0,"slots":[{"show":false,"used":false},{"show":false,"used":false},{"show":false,"used":false},{"show":false,"used":false},{"show":false,"used":false}],"groups":[]}'
+  "exec dmr listen notifs")
+(deflisten load :initial '{"cpu":0,"mem":0}' "exec dmr listen load")
+(deflisten sys :initial '{"cpu":0,"mem":0,"memUsed":"","memTotal":"","storage":[],"uptime":""}'
+  "exec dmr listen sys")
+(deflisten launcher :initial '{"query":"","mode":"apps","items":[],"wallpapers":[],"count":0,"selected":0,"empty":true,"prefix":">"}'
+  "exec dmr listen launcher")
+; Programmatic launcher text changes only (Tab completion / clear).
+(deflisten lset :initial '{"text":"","n":0}' "exec dmr listen lset")
+(deflisten ui :initial '{"launcher":false,"controlcenter":false,"dash":false,"notifcenter":false,"powermenu":false,"osd":false,"osdKind":"volume","powerSel":0,"ccPage":"","dashTab":0,"fullscreen":false,"scrim":false,"modal":false,"wifiAskPassword":""}'
+  "exec dmr listen ui")
+(deflisten theme :initial '{"name":"","mode":"dark","variant":"","light":false,"wallpaper":"","logo":"","c":{}}'
+  "exec dmr listen theme")
+(deflisten info :initial '{"user":"","host":"","distro":"","face":"","uptime":"","wm":"driftwm","weather":{"available":false,"temp":"--°C","icon":"cloud","desc":"","city":"","days":[],"hours":[]},"cal":{"title":"","weeks":[],"offset":0}}'
+  "exec dmr listen info")
+
+; Clock: published by the daemon once per minute, on the minute (EWW_TIME would
+; wake every clock widget each second). Media position: once per second, only
+; while the dash Media tab is visible.
+(deflisten clock :initial '{"hm":"--:--","ampm":"","date":"","long":""}' "exec dmr listen clock")
+(deflisten mpos :initial '{"pos":0,"len":0,"pt":"0:00","lt":"0:00"}' "exec dmr listen mpos")
+
+(defvar assets "./assets")

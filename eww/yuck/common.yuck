@@ -1,0 +1,21 @@
+; Shared building blocks.
+
+; Material Symbols Rounded icon (ligature text). Filled icons use the FILL
+; axis through a Pango font variation (GTK3 CSS has no font-variation-settings).
+(defwidget icon [name ?class ?fill ?size]
+  (label :class "icon ${class ?: ''}"
+         :markup "<span font_desc='Material Symbols Rounded ${size ?: 16}px @FILL=${fill == true ? 1 : 0},wght=400'>${name}</span>"))
+
+; Circular icon button (DMS DankActionButton).
+(defwidget icon-btn [icon onclick ?class ?active ?fill ?size ?tooltip]
+  (button :class "icon-btn ${class ?: ''} ${active == true ? 'active' : ''}"
+          :onclick onclick :tooltip {tooltip ?: ""}
+    (icon :name icon :fill {fill == true || active == true} :size {size ?: 20})))
+
+; Transparent full-screen window under the open panel: an outside click closes
+; it. Modals (launcher, notification center, power menu) also dim the screen.
+(defwindow catcher []
+  :geometry (geometry :anchor "top left" :width "100%" :height "100%")
+  :stacking "fg" :exclusive false :focusable "none" :namespace "dmr-catcher"
+  (eventbox :onclick "dmr close" :onrightclick "dmr close"
+    (box :class "catch ${ui.scrim ? 'scrim' : ''}" :hexpand true :vexpand true)))

@@ -1,0 +1,82 @@
+; Spotlight launcher (DMS Spotlight modal): a centred search pill, a list of
+; 56 px result rows and a footer with mode chips + keyboard hints.
+; Typed text reaches the daemon through a quoted heredoc, so nothing typed
+; here is ever interpreted by a shell. Esc/Up/Down/Tab come from the patched
+; input's `:onkeypress`, focus from `:autofocus` (nix/eww-dmr.patch).
+
+(defwindow launcher []
+  :geometry (geometry :anchor "top center" :y "18%")
+  :stacking "overlay" :exclusive false :focusable "exclusive" :namespace "dmr-launcher"
+  (revealer :transition "crossfade" :reveal {ui.launcher} :duration "180ms"
+    (box :class "spotlight" :orientation "v" :space-evenly false
+      (launcher-search)
+      (box :class "spot-header" :space-evenly false
+        (icon :name {launcher.mode == "apps" ? "apps" : launcher.mode == "calc" ? "calculate" : launcher.mode == "wallpapers" ? "image" : launcher.mode == "schemes" ? "palette" : "bolt"} :size 16 :class "spot-header-icon")
+        (label :class "spot-header-title" :xalign 0 :hexpand true
+               :text {launcher.mode == "apps" ? "Applications" : launcher.mode == "calc" ? "Calculator" : launcher.mode == "wallpapers" ? "Wallpapers" : launcher.mode == "schemes" ? "Color schemes" : launcher.mode == "variants" ? "Variants" : "Actions"})
+        (label :class "spot-count" :text "${launcher.count}"))
+      (launcher-results)
+      (box :class "spot-footer" :space-evenly false
+        (box :class "chips" :space-evenly false :spacing 6 :hexpand true
+          (launcher-chip :label "All" :active {launcher.mode == "apps" && launcher.query == ""} :q "")
+          (launcher-chip :label "Apps" :active {launcher.mode == "apps" && launcher.query != ""} :q "")
+          (launcher-chip :label "Actions" :active {launcher.mode == "actions"} :q ">")
+          (launcher-chip :label "Wallpapers" :active {launcher.mode == "wallpapers"} :q ">wallpaper "))
+        (label :class "spot-hint" :text "↑↓ nav")
+        (label :class "spot-hint" :text "Tab complete")))))
+
+(defwidget launcher-chip [label active q]
+  (eventbox :cursor "pointer" :onclick "dmr launcher set '${q}'"
+    (box :class "chip ${active ? 'active' : ''}"
+      (label :text label))))
+
+(defwidget launcher-search []
+  (box :class "spot-search" :space-evenly false
+    (icon :name "search" :size 22 :class "spot-search-icon")
+    (overlay :hexpand true
+      (input :class "spot-input" :hexpand true :value {lset.text}
+             :onchange "dmr launcher query <<'__DMR_EOF__'
+{}
+__DMR_EOF__"
+             :onaccept "dmr launcher accept"
+             :onkeypress "dmr launcher key {}"
+             :autofocus true)
+      (box :class "spot-placeholder-wrap" :visible {launcher.query == ""} :halign "start"
+        (label :class "spot-placeholder" :xalign 0 :text "Search...")))
+    (box :visible {launcher.query != ""}
+      (button :class "spot-clear" :onclick "dmr launcher set" (icon :name "close" :size 18)))))
+
+(defwidget launcher-results []
+  (box :orientation "v" :space-evenly false :class "spot-results"
+    ; Wallpaper grid
+    (box :visible {launcher.mode == "wallpapers"} :class "spot-walls" :space-evenly false :spacing 8 :halign "center"
+      (for w in {launcher.wallpapers}
+        (eventbox :cursor "pointer" :onclick "dmr launcher activate ${w.idx}"
+          (box :class "spot-wall ${w.sel ? 'sel' : ''}" :orientation "v" :space-evenly false
+            (box :class "spot-wall-thumb" :style "background-image: url('${w.thumb}');")
+            (label :class "spot-wall-name" :limit-width 14 :text {w.name})))))
+    ; Empty state
+    (box :visible {launcher.empty && launcher.mode != "wallpapers"} :class "spot-empty" :orientation "v" :space-evenly false
+      (icon :name "search_off" :size 40 :class "spot-empty-icon")
+      (label :class "spot-empty-title" :text "No results found"))
+    ; Result rows
+    (box :visible {launcher.mode != "wallpapers"}
+      (eventbox :onscroll "dmr launcher key {}"
+        (box :orientation "v" :space-evenly false :spacing 2
+          (for it in {launcher.items}
+            (eventbox :cursor "pointer" :onclick "dmr launcher activate ${it.idx}"
+              (box :class "spot-row ${it.sel ? 'sel' : ''}" :space-evenly false
+                (box :class "spot-row-icon" :valign "center"
+                  (box :visible {it.kind == "app"}
+                    (image :icon {it.icon ?: "application-x-executable"} :icon-size "dnd"))
+                  (box :visible {it.kind != "app" && it.kind != "scheme"} :class "spot-mat"
+                    (icon :name {it.matIcon ?: "apps"} :size 20 :fill {it.current ?: false}))
+                  (box :visible {it.kind == "scheme"} :class "spot-swatch" :space-evenly true
+                    (for c in {it.colours ?: []}
+                      (box :class "swatch" :style "background-color: ${c};"))))
+                (box :orientation "v" :space-evenly false :valign "center" :hexpand true
+                  (label :class "spot-row-name" :xalign 0 :limit-width 56 :text {it.name})
+                  (box :visible {(it.desc ?: "") != ""}
+                    (label :class "spot-row-desc" :xalign 0 :limit-width 70 :text {it.desc ?: ""})))
+                (box :visible {it.current ?: false}
+                  (icon :name "check_circle" :fill true :size 20 :class "spot-current"))))))))))

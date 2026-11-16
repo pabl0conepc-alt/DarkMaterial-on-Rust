@@ -1,0 +1,161 @@
+; Control Center (DMS ControlCenterPopout): drops from the bar's top-right.
+; Header (avatar, user@host, compositor + uptime, settings/lock/power),
+; brightness + volume sliders, network/bluetooth/output/input tiles (each
+; expands a detail list), four quick toggles, power profile + disk.
+; Persistent: built once at startup, only revealed afterwards.
+
+(defwindow controlcenter []
+  :geometry (geometry :anchor "top right" :x "6px" :y "4px")
+  :stacking "overlay" :exclusive false :focusable "none" :namespace "dmr-controlcenter"
+  (revealer :transition "slidedown" :reveal {ui.controlcenter} :duration "250ms"
+    (box :class "popout cc" :orientation "v" :space-evenly false
+      (cc-header)
+      (box :class "cc-sliders" :space-evenly true :spacing 10
+        (cc-slider :icon {status.bright.available ? "brightness_6" : "brightness_empty"} :value {status.bright.pct}
+                   :cmd "dmr brightness set {}" :dim {!status.bright.available} :onclick "")
+        (cc-slider :icon {status.audio.icon} :value {status.audio.vol} :cmd "dmr volume set {}"
+                   :dim {status.audio.muted} :onclick "dmr volume mute"))
+      (box :class "cc-grid" :space-evenly true :spacing 10
+        (cc-tile :icon {status.net.connected ? status.net.icon : (status.net.wifiEnabled ? "wifi" : "wifi_off")}
+                 :title {status.net.connected ? status.net.name : (status.net.available ? (status.net.wifiEnabled ? "Not connected" : "Wi-Fi off") : "Not connected")}
+                 :sub {status.net.connected ? (status.net.type == "ethernet" ? "Ethernet" : "${status.net.strength}% signal") : "Select network"}
+                 :active {status.net.connected || status.net.wifiEnabled}
+                 :onicon "dmr wifi toggle" :onclick "dmr cc-page ${ui.ccPage == 'network' ? '' : 'network'}" :open {ui.ccPage == "network"})
+        (cc-tile :icon {status.bt.available ? status.bt.icon : "bluetooth_disabled"}
+                 :title "Bluetooth"
+                 :sub {!status.bt.available ? "No adapters" : (!status.bt.powered ? "Off" : (status.bt.connected > 0 ? "${status.bt.connected} connected" : "On"))}
+                 :active {status.bt.powered}
+                 :onicon "dmr bluetooth toggle" :onclick "dmr cc-page ${ui.ccPage == 'bluetooth' ? '' : 'bluetooth'}" :open {ui.ccPage == "bluetooth"}))
+      (box :visible {ui.ccPage == "network" || ui.ccPage == "bluetooth"} (cc-details))
+      (box :class "cc-grid" :space-evenly true :spacing 10
+        (cc-tile :icon {status.audio.muted ? "volume_off" : "volume_up"}
+                 :title {status.audio.sink != "" ? status.audio.sink : "No output device"}
+                 :sub {status.audio.available ? "${status.audio.vol}%" : "Select device"}
+                 :active {status.audio.available && !status.audio.muted}
+                 :onicon "dmr volume mute" :onclick "dmr cc-page ${ui.ccPage == 'output' ? '' : 'output'}" :open {ui.ccPage == "output"})
+        (cc-tile :icon {status.audio.source == "" || status.audio.micMuted ? "mic_off" : "mic"}
+                 :title {status.audio.source != "" ? status.audio.source : "No input device"}
+                 :sub {status.audio.source != "" ? "${status.audio.micVol}%" : "Select device"}
+                 :active {status.audio.source != "" && !status.audio.micMuted}
+                 :onicon "dmr mic mute" :onclick "dmr cc-page ${ui.ccPage == 'input' ? '' : 'input'}" :open {ui.ccPage == "input"}))
+      (box :visible {ui.ccPage == "output" || ui.ccPage == "input"} (cc-audio-details))
+      (box :class "cc-toggles" :space-evenly true :spacing 10
+        (cc-toggle :icon {theme.light ? "light_mode" : "contrast"} :active {!theme.light} :onclick "dmr scheme mode toggle" :tooltip "Dark mode")
+        (cc-toggle :icon "bedtime" :active {status.night} :onclick "dmr night" :tooltip "Night mode")
+        (cc-toggle :icon "do_not_disturb_on" :active {status.dnd} :onclick "dmr dnd" :tooltip "Do not disturb")
+        (cc-toggle :icon "coffee" :active {status.idleInhibit} :onclick "dmr idle-inhibit" :tooltip "Keep awake"))
+      (box :class "cc-grid" :space-evenly true :spacing 10
+        (cc-tile :icon "battery_android_full" :title "Power profile"
+                 :sub {status.bat.profile == "" ? "Unavailable" : (status.bat.profile == "power-saver" ? "Power saver" : (status.bat.profile == "performance" ? "Performance" : "Balanced"))}
+                 :active false :onicon "" :open false
+                 :onclick "dmr power-profile ${status.bat.profile == 'balanced' ? 'performance' : (status.bat.profile == 'performance' ? 'power-saver' : 'balanced')}")
+        (cc-tile :icon "storage" :title {arraylength(sys.storage) > 0 ? sys.storage[0].mount : "/"}
+                 :sub {arraylength(sys.storage) > 0 ? "${sys.storage[0].used} / ${sys.storage[0].total} (${sys.storage[0].pct}%)" : "—"}
+                 :active false :onicon "" :onclick "" :open false))
+      (box :class "cc-footer" :space-evenly false :spacing 10
+        (eventbox :cursor "pointer" :hexpand true :onclick "dmr toggle launcher"
+          (box :class "cc-windows" :space-evenly false
+            (icon :name "select_window" :size 18 :class "cc-windows-icon")
+            (label :class "cc-windows-text" :xalign 0 :hexpand true
+                   :text "${wm.windowCount} window${wm.windowCount == 1 ? '' : 's'}")
+            (icon :name "chevron_right" :size 18 :class "c-variant")))
+        (button :class "cc-edit" :onclick "dmr settings"
+          (icon :name "edit" :size 20 :class "c-primary"))))))
+
+(defwidget cc-header []
+  (box :class "cc-header" :space-evenly false
+    (overlay :class "cc-avatar"
+      (box :class "cc-avatar-bg" (icon :name "person" :size 40 :class "cc-avatar-icon"))
+      (box :visible {info.face != ""} :class "cc-avatar-img" :style "background-image: url('${info.face}');"))
+    (box :orientation "v" :space-evenly false :valign "center" :hexpand true :class "cc-who"
+      (label :class "cc-user" :xalign 0 :limit-width 28 :text "${info.user} @ ${info.host}")
+      (box :class "cc-sub" :space-evenly false :spacing 4
+        (icon :name "web_asset" :size 14 :class "c-variant")
+        (label :class "cc-sub-text" :text "driftwm")
+        (box :class "cc-sub-gap")
+        (icon :name "schedule" :size 14 :class "c-variant")
+        (label :class "cc-sub-text" :text {replace(replace(replace(replace(info.uptime, " minutes?", "m"), " hours?", "h"), " days?", "d"), ",", "")})))
+    (box :class "cc-actions" :space-evenly false :spacing 8 :valign "center"
+      (button :class "cc-action" :onclick "dmr settings" (icon :name "settings" :size 22))
+      (button :class "cc-action" :onclick "dmr lock" (icon :name "lock" :size 22))
+      (button :class "cc-action" :onclick "dmr close; dmr open powermenu" (icon :name "power_settings_new" :size 22)))))
+
+; Icon circle + flat track slider (DMS DankSlider).
+(defwidget cc-slider [icon value cmd ?dim ?onclick]
+  (box :class "cc-slider ${dim == true ? 'dim' : ''}" :space-evenly false
+    (button :class "cc-slider-icon" :onclick {onclick ?: ""} (icon :name icon :size 20))
+    (scale :class "dank-slider" :hexpand true :min 0 :max 101 :value value :onchange cmd)))
+
+(defwidget cc-tile [icon title sub active onclick onicon ?open]
+  (eventbox :cursor "pointer" :onclick onclick
+    (box :class "cc-tile ${open == true ? 'open' : ''}" :space-evenly false
+      (button :class "cc-tile-icon ${active ? 'active' : ''}" :onclick {onicon != "" ? onicon : onclick}
+        (icon :name icon :size 20 :fill {active}))
+      (box :orientation "v" :space-evenly false :valign "center" :class "cc-tile-text"
+        (label :class "cc-tile-title" :xalign 0 :limit-width 22 :text title)
+        (label :class "cc-tile-sub" :xalign 0 :limit-width 30 :text sub)))))
+
+(defwidget cc-toggle [icon active onclick ?tooltip]
+  (button :class "cc-toggle ${active ? 'active' : ''}" :onclick onclick :tooltip {tooltip ?: ""}
+    (icon :name icon :size 24 :fill {active})))
+
+; Expanded detail list under the network/bluetooth tiles.
+(defwidget cc-details []
+  (box :class "cc-details" :orientation "v" :space-evenly false
+    (box :visible {ui.ccPage == "network"} :orientation "v" :space-evenly false
+      (box :class "cc-details-head" :space-evenly false
+        (label :class "cc-details-title" :xalign 0 :hexpand true :text "Wi-Fi")
+        (button :class "cc-mini" :onclick "dmr wifi scan" (icon :name "refresh" :size 18))
+        (button :class "cc-switch ${status.net.wifiEnabled ? 'on' : ''}" :onclick "dmr wifi toggle"
+          (box :class "cc-switch-knob" :halign {status.net.wifiEnabled ? "end" : "start"})))
+      (box :visible {ui.wifiAskPassword != ""} :class "cc-pass" :space-evenly false
+        (icon :name "key" :size 18 :class "c-primary")
+        (input :class "cc-pass-input" :hexpand true :password true
+               :onaccept "dmr wifi password <<'__DMR_EOF__'
+{}
+__DMR_EOF__"))
+      (box :visible {arraylength(status.net.networks) == 0} :class "cc-empty"
+        (label :text {status.net.wifiEnabled ? (status.net.scanning ? "Scanning…" : "No networks found") : "Wi-Fi is off"}))
+      (scroll :vscroll true :hscroll false :class "cc-list" :height {arraylength(status.net.networks) > 4 ? 220 : arraylength(status.net.networks) * 52}
+        (box :orientation "v" :space-evenly false :spacing 2
+          (for n in {status.net.networks}
+            (eventbox :cursor "pointer" :onclick {n.active ? "dmr wifi disconnect" : "dmr wifi connect-idx ${n.i}"}
+              (box :class "cc-item ${n.active ? 'active' : ''}" :space-evenly false
+                (icon :name {n.icon} :size 20 :class "cc-item-icon")
+                (box :orientation "v" :space-evenly false :hexpand true :valign "center"
+                  (label :class "cc-item-name" :xalign 0 :limit-width 34 :text {n.ssid})
+                  (label :class "cc-item-sub" :xalign 0 :text "${n.active ? 'Connected · ' : ''}${n.band}${n.secure ? ' · Secured' : ''}"))
+                (box :visible {n.active} (icon :name "check" :size 18 :class "c-primary"))))))))
+    (box :visible {ui.ccPage == "bluetooth"} :orientation "v" :space-evenly false
+      (box :class "cc-details-head" :space-evenly false
+        (label :class "cc-details-title" :xalign 0 :hexpand true :text "Bluetooth")
+        (button :class "cc-mini ${status.bt.discovering ? 'spin' : ''}" :onclick "dmr bluetooth scan" (icon :name "refresh" :size 18))
+        (button :class "cc-switch ${status.bt.powered ? 'on' : ''}" :onclick "dmr bluetooth toggle"
+          (box :class "cc-switch-knob" :halign {status.bt.powered ? "end" : "start"})))
+      (box :visible {arraylength(status.bt.devices) == 0} :class "cc-empty"
+        (label :text {status.bt.available ? (status.bt.powered ? "No devices" : "Bluetooth is off") : "No adapters"}))
+      (scroll :vscroll true :hscroll false :class "cc-list" :height {arraylength(status.bt.devices) > 4 ? 220 : arraylength(status.bt.devices) * 52}
+        (box :orientation "v" :space-evenly false :spacing 2
+          (for d in {status.bt.devices}
+            (eventbox :cursor "pointer" :onclick "dmr bluetooth ${d.connected ? 'disconnect' : 'connect'} ${d.address}"
+              (box :class "cc-item ${d.connected ? 'active' : ''}" :space-evenly false
+                (icon :name {d.icon} :size 20 :class "cc-item-icon")
+                (box :orientation "v" :space-evenly false :hexpand true :valign "center"
+                  (label :class "cc-item-name" :xalign 0 :limit-width 34 :text {d.name})
+                  (label :class "cc-item-sub" :xalign 0 :text {d.status}))
+                (box :visible {d.connected} (icon :name "check" :size 18 :class "c-primary"))))))))))
+
+(defwidget cc-audio-details []
+  (box :class "cc-details" :orientation "v" :space-evenly false
+    (label :class "cc-details-title" :xalign 0 :text {ui.ccPage == "output" ? "Output devices" : "Input devices"})
+    (box :visible {arraylength(ui.ccPage == "output" ? status.audio.sinks : status.audio.sources) == 0} :class "cc-empty"
+      (label :text "No devices"))
+    (box :orientation "v" :space-evenly false :spacing 2
+      (for d in {ui.ccPage == "output" ? status.audio.sinks : status.audio.sources}
+        (eventbox :cursor "pointer" :onclick "dmr audio ${ui.ccPage == 'output' ? 'sink' : 'source'} ${d.i}"
+          (box :class "cc-item ${d.active ? 'active' : ''}" :space-evenly false
+            (icon :name {ui.ccPage == "output" ? "speaker" : "mic"} :size 20 :class "cc-item-icon")
+            (label :class "cc-item-name" :xalign 0 :hexpand true :limit-width 40 :text {d.desc})
+            (box :visible {d.active} (icon :name "check" :size 18 :class "c-primary"))))))
+    (box :visible {ui.ccPage == "input"} :class "cc-slider-row"
+      (cc-slider :icon {status.audio.micIcon} :value {status.audio.micVol} :cmd "dmr mic set {}" :dim {status.audio.micMuted} :onclick "dmr mic mute"))))

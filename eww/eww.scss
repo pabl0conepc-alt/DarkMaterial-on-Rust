@@ -1,0 +1,493 @@
+// DarkMaterial — DankMaterialShell look for EWW (GTK3 CSS via SCSS).
+// Colours come from the generated `_theme.scss` (Material 3 roles). The
+// metrics below were measured on DMS v2.1 screenshots at 1920×1080:
+// floating 38 px bar 4 px from the edges, 30 px pills, 12 px corner radius,
+// panels on `surface`, cards on `surfaceContainer`.
+@import "theme";
+
+// ---------------------------------------------------------------- tokens
+$sp-xxs: 2px; $sp-xs: 4px; $sp-s: 8px; $sp-m: 12px; $sp-l: 16px; $sp-xl: 24px;
+$r-xs: 4px; $r-s: 8px; $r-m: 12px; $r-l: 16px; $r-xl: 24px; $full: 999px;
+
+$font: "Google Sans Flex", "GoogleSansFlex", "Inter", sans-serif;
+$font-icon: "Material Symbols Rounded";
+
+@function fs($px) { @return $px * $font-scale * 1px; }
+
+$dur-s: 150ms * $anim-scale;
+$dur: 250ms * $anim-scale;
+$ease: cubic-bezier(0.2, 0, 0, 1);
+
+$bg: rgba($surface, $t-base);
+$card: rgba($surfaceContainer, if($transparency, $t-layers, 1));
+$card-high: rgba($surfaceContainerHigh, if($transparency, $t-layers, 1));
+$card-highest: $surfaceContainerHighest;
+$sel: mix($secondaryContainer, $onSurface, 92%);
+$track: mix($onSurfaceVariant, $surfaceContainerHighest, 35%);
+
+@mixin state($base, $on: $onSurface) {
+  background-color: $base;
+  transition: background-color $dur-s $ease;
+  &:hover { background-color: mix($on, $base, 8%); }
+  &:active { background-color: mix($on, $base, 12%); }
+}
+
+// ---------------------------------------------------------------- reset
+* {
+  all: unset;
+  font-family: $font;
+  font-size: fs(13);
+  color: $onSurface;
+  -gtk-icon-shadow: none;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+tooltip, tooltip * {
+  background-color: $inverseSurface;
+  color: $inverseOnSurface;
+  border-radius: $r-s;
+  padding: 4px 8px;
+}
+
+.icon { font-family: $font-icon; }
+.c-primary { color: $primary; }
+.c-variant { color: $onSurfaceVariant; }
+.c-error { color: $error; }
+
+.catch { background-color: transparent; }
+.catch.scrim { background-color: rgba(#000, 0.55); }
+
+// Shared slider (DMS DankSlider): thick rounded track, primary fill, thin
+// vertical handle.
+scale.dank-slider {
+  min-height: 28px;
+  trough {
+    min-height: 26px;
+    border-radius: $r-s;
+    background-color: $track;
+    highlight { border-radius: $r-s; background-color: $primary; min-height: 26px; }
+    slider { min-width: 4px; min-height: 36px; margin: -5px 4px; border-radius: 2px; background-color: $primary; }
+  }
+}
+
+// ---------------------------------------------------------------- bar
+.bar-outer.floating .dbar { margin: 4px 4px 0 4px; }
+.dbar {
+  background-color: $bg;
+  min-height: 38px;
+  padding: 0 4px;
+}
+.bar-outer.floating .dbar { border-radius: $r-m; }
+
+.pill {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: $full;
+  @include state($card);
+  label { font-size: fs(12); }
+  .dot { color: $onSurfaceVariant; margin: 0 10px; font-size: fs(8); }
+}
+.pill.square { min-width: 30px; padding: 0; }
+.pill.square > * { }
+.pill.active { background-color: mix($primary, $surfaceContainer, 18%); }
+.bar-icon { color: $onSurface; }
+.pill .icon + label { margin-left: 8px; }
+
+.ws-pill { padding: 0 8px; }
+.ws {
+  min-width: 21px;
+  min-height: 14px;
+  border-radius: $full;
+  background-color: $outlineVariant;
+  transition: all $dur $ease;
+}
+.ws.occupied { background-color: $onSurfaceVariant; }
+.ws.active { min-width: 32px; background-color: $primary; }
+
+.focused { padding: 0 12px 0 8px; }
+.focused-icon { margin-right: 8px; }
+.focused-app, .focused-title { color: $onSurface; }
+
+.clock { padding: 0 10px; }
+.weather .icon + label { margin-left: 6px; }
+.stat { padding: 0 14px 0 12px; }
+.stat .stat-value { margin-left: 13px; }
+.battery.low .bar-icon, .battery.low label { color: $error; }
+
+.badge {
+  min-width: 6px; min-height: 6px;
+  margin: 4px 7px 0 0;
+  border-radius: $full;
+  background-color: $error;
+}
+
+.cc-btn { padding: 0 9px; }
+.cc-btn .icon + .icon, .cc-btn box + .icon, .cc-btn box + box { margin-left: 8px; }
+
+.tray-wrap { padding: 0 4px; }
+.tray menu { background-color: $surfaceContainer; border-radius: $r-m; padding: 6px; }
+.tray menu menuitem { padding: 6px 10px; border-radius: $r-s; }
+.tray menu menuitem:hover { background-color: $surfaceContainerHigh; }
+
+.music { padding: 0 6px 0 10px; }
+.music-text { margin: 0 8px; }
+.music-icon { color: $primary; }
+.mini { min-width: 22px; min-height: 22px; border-radius: $full; @include state(transparent); }
+.mini.play { background-color: $primary; .icon { color: $onPrimary; } }
+
+// ---------------------------------------------------------------- popouts
+.popout {
+  background-color: $bg;
+  border-radius: $r-m;
+  padding: $sp-l;
+}
+
+// Control center: 598 px wide.
+.cc { min-width: 566px; }
+.cc > * { margin-bottom: 10px; }
+.cc > *:last-child { margin-bottom: 0; }
+.cc-header { margin-bottom: 14px; }
+.cc-avatar, .cc-avatar-bg, .cc-avatar-img { min-width: 64px; min-height: 64px; border-radius: $full; }
+.cc-avatar-bg { background-color: $surfaceContainerHighest; }
+.cc-avatar-icon { color: $onSurfaceVariant; }
+.cc-avatar-img { background-size: cover; background-position: center; }
+.cc-who { margin-left: 12px; }
+.cc-user { font-size: fs(16); font-weight: 500; }
+.cc-sub { margin-top: 4px; }
+.cc-sub-text { font-size: fs(12); color: $onSurfaceVariant; }
+.cc-sub-gap { min-width: 6px; }
+.cc-action {
+  min-width: 64px; min-height: 48px;
+  border-radius: $full;
+  @include state($card);
+  .icon { color: $primary; }
+}
+.cc-slider { }
+.cc-slider-icon {
+  min-width: 40px; min-height: 40px;
+  border-radius: $full;
+  margin-right: 8px;
+  @include state($card);
+  .icon { color: $onSurface; }
+}
+.cc-slider.dim .cc-slider-icon .icon { color: $onSurfaceVariant; }
+.cc-slider.dim scale.dank-slider trough highlight, .cc-slider.dim scale.dank-slider trough slider { background-color: $onSurfaceVariant; }
+.cc-slider-row { margin-top: 8px; }
+.cc-tile {
+  min-height: 62px;
+  padding: 0 8px;
+  border-radius: $r-m;
+  @include state($card);
+}
+.cc-tile.open { background-color: $card-high; }
+.cc-tile-icon {
+  min-width: 46px; min-height: 46px;
+  border-radius: $r-m;
+  @include state(transparent);
+  .icon { color: $onSurface; }
+}
+.cc-tile-icon.active { background-color: $primary; .icon { color: $onPrimary; } }
+.cc-tile-icon.active:hover { background-color: mix($onPrimary, $primary, 8%); }
+.cc-tile-text { margin-left: 12px; }
+.cc-tile-title { font-size: fs(15); font-weight: 500; }
+.cc-tile-sub { font-size: fs(12.5); color: $onSurfaceVariant; margin-top: 2px; }
+.cc-toggle {
+  min-height: 64px;
+  border-radius: $r-l;
+  @include state($card);
+  .icon { color: $primary; }
+}
+.cc-toggle.active { background-color: $primary; .icon { color: $onPrimary; } }
+.cc-toggle.active:hover { background-color: mix($onPrimary, $primary, 8%); }
+.cc-footer { margin-top: 2px; }
+.cc-windows {
+  min-height: 46px;
+  padding: 0 14px 0 12px;
+  border-radius: $r-m;
+  @include state($card);
+}
+.cc-windows-icon { margin-right: 12px; }
+.cc-windows-text { font-size: fs(14); }
+.cc-edit {
+  min-width: 62px; min-height: 46px;
+  border-radius: $full;
+  @include state($card);
+}
+.cc-details {
+  padding: 12px;
+  border-radius: $r-m;
+  background-color: $card;
+}
+.cc-details-head { margin-bottom: 8px; }
+.cc-details-title { font-size: fs(14); font-weight: 500; margin: 0 0 8px 4px; }
+.cc-details-head .cc-details-title { margin-bottom: 0; }
+.cc-mini { min-width: 30px; min-height: 30px; border-radius: $full; margin-right: 8px; @include state(transparent); }
+.cc-switch {
+  min-width: 46px; min-height: 26px;
+  border-radius: $full;
+  padding: 3px;
+  background-color: $surfaceContainerHighest;
+  border: 2px solid $outline;
+}
+.cc-switch.on { background-color: $primary; border-color: $primary; }
+.cc-switch-knob { min-width: 16px; min-height: 16px; margin: 2px; border-radius: $full; background-color: $outline; }
+.cc-switch.on .cc-switch-knob { min-width: 20px; min-height: 20px; margin: 0; background-color: $onPrimary; }
+.cc-list { }
+.cc-item {
+  min-height: 50px;
+  padding: 0 12px;
+  border-radius: $r-s;
+  @include state($card-high);
+}
+.cc-item.active { background-color: $sel; }
+.cc-item-icon { margin-right: 12px; }
+.cc-item-name { font-size: fs(14); }
+.cc-item-sub { font-size: fs(12); color: $onSurfaceVariant; }
+.cc-empty { padding: 14px; label { color: $onSurfaceVariant; } }
+.cc-pass {
+  min-height: 44px; padding: 0 12px; margin-bottom: 8px;
+  border-radius: $full; background-color: $card-high; border: 1px solid $outline;
+}
+.cc-pass-input { margin-left: 10px; }
+
+// ---------------------------------------------------------------- dash
+.dashp { min-width: 808px; padding: 16px 12px 12px 12px; }
+.dash-tabs { margin-bottom: 18px; }
+.dash-tab { padding: 2px 0; }
+.dash-tab-chip {
+  min-width: 56px; min-height: 32px;
+  border-radius: $full;
+  transition: background-color $dur $ease;
+  .icon { color: $onSurfaceVariant; }
+}
+.dash-tab:hover .dash-tab-chip { background-color: $card; }
+.dash-tab.active .dash-tab-chip { background-color: $sel; .icon { color: $onSurface; } }
+.dash-tab-label { font-size: fs(12.5); margin-top: 4px; color: $onSurfaceVariant; }
+.dash-tab.active .dash-tab-label { color: $onSurface; }
+
+.card { background-color: $card; border-radius: $r-m; }
+.dash-col { min-width: 400px; }
+.clock-card {
+  min-height: 96px;
+  background-color: mix($primaryContainer, $surfaceContainer, 70%);
+}
+.big-clock { font-size: fs(66); font-weight: 800; margin-top: -6px; margin-bottom: -6px; color: $onPrimaryContainer; }
+.weather-card { min-width: 128px; min-height: 96px; padding: 12px 10px 8px 10px; }
+.weather-card-icon { color: $primary; }
+.weather-card-text { font-size: fs(12.5); margin-top: 6px; }
+
+.cal { padding: 10px 8px 8px 8px; }
+.cal-head { margin-bottom: 10px; }
+.cal-title { font-size: fs(16); font-weight: 500; }
+.cal-nav { min-width: 28px; min-height: 28px; border-radius: $full; @include state(transparent); .icon { color: $onSurfaceVariant; } }
+.cal-dow { margin-bottom: 8px; label { font-size: fs(12.5); color: $onSurfaceVariant; } }
+.cal-day {
+  min-height: 34px;
+  border-radius: $r-s;
+  background-color: $surfaceContainerHigh;
+  label { font-size: fs(13); }
+}
+.cal-day.other { background-color: transparent; label { color: $outline; } }
+.cal-day.today { background-color: $primary; label { color: $onPrimary; font-weight: 500; } }
+
+.media-card { min-height: 96px; padding: 0 12px; }
+.media-none-icon { }
+.media-none { font-size: fs(12.5); margin-top: 6px; }
+.media-art-sm { min-width: 64px; min-height: 64px; border-radius: $r-m; background-size: cover; background-position: center; background-color: $surfaceContainerHighest; }
+.media-art-ph { min-width: 64px; min-height: 64px; .icon { color: $onSurfaceVariant; } }
+.media-title { font-size: fs(14); font-weight: 500; }
+.media-artist { font-size: fs(12.5); color: $onSurfaceVariant; margin-top: 2px; }
+.media-btn { min-width: 36px; min-height: 36px; border-radius: $full; @include state(transparent); }
+.media-btn.play { background-color: $primary; .icon { color: $onPrimary; } }
+.media-btn.play:hover { background-color: mix($onPrimary, $primary, 8%); }
+.media-btn.big { min-width: 56px; min-height: 56px; }
+
+.notif-col { min-width: 400px; min-height: 512px; padding: 12px; }
+.notif-empty { margin-top: 140px; }
+.notif-empty-text { color: $onSurfaceVariant; margin-top: 8px; }
+
+.dash-page { min-height: 400px; padding: 0 8px; }
+.media-empty-face { font-family: "Comic Neue", "Caveat", cursive; font-size: fs(22); }
+.media-empty-text { font-family: "Comic Neue", "Caveat", cursive; font-size: fs(24); font-weight: 600; }
+.media-full { padding: 24px 16px; }
+.media-art-lg { min-width: 280px; min-height: 280px; border-radius: $r-l; background-size: cover; background-position: center; background-color: $surfaceContainerHighest; }
+.media-art-lg .media-art-ph { min-width: 280px; min-height: 280px; }
+.media-big-title { font-size: fs(24); font-weight: 600; }
+.media-big-artist { font-size: fs(16); color: $primary; margin-top: 4px; }
+.media-big-album { font-size: fs(13); color: $onSurfaceVariant; margin-top: 2px; margin-bottom: 20px; }
+scale.media-progress trough { min-height: 6px; border-radius: $full; background-color: $track;
+  highlight { background-color: $primary; border-radius: $full; }
+  slider { min-width: 14px; min-height: 14px; margin: -4px; border-radius: $full; background-color: $primary; } }
+.media-times { margin-top: 4px; margin-bottom: 14px; }
+.media-time { font-size: fs(12); color: $onSurfaceVariant; }
+.media-player { font-size: fs(12); color: $onSurfaceVariant; margin-top: 14px; }
+
+.walls-grid { padding: 4px 4px 12px 4px; }
+.wall {
+  min-width: 186px; min-height: 76px;
+  border-radius: $r-m;
+  background-size: cover; background-position: center;
+  background-color: $surfaceContainerHigh;
+  border: 3px solid transparent;
+}
+.wall.current { border-color: $primary; }
+.walls-foot { margin-top: 8px; }
+.walls-name { font-size: fs(12.5); color: $onSurfaceVariant; margin-top: 6px; }
+
+.weather-empty .icon { }
+.weather-empty-title { font-size: fs(15); font-weight: 500; margin-top: 8px; }
+.weather-empty-sub { font-size: fs(12.5); color: $onSurfaceVariant; margin-top: 6px; }
+.weather-full { padding: 20px 8px; }
+.weather-big { font-size: fs(48); font-weight: 600; }
+.weather-desc { font-size: fs(15); color: $onSurfaceVariant; }
+.weather-stat { padding: 12px 8px; .icon { } }
+.weather-stat-label { font-size: fs(12); color: $onSurfaceVariant; margin-top: 6px; }
+.weather-stat-value { font-size: fs(14); font-weight: 500; margin-top: 2px; }
+.weather-day { padding: 12px 6px; .icon { margin: 6px 0; } }
+.weather-day-name { font-size: fs(13); font-weight: 500; }
+.weather-day-temp { font-size: fs(12.5); color: $onSurfaceVariant; }
+
+// ---------------------------------------------------------------- notifications
+.np-col { padding-top: 0; }
+.notif-slot { padding-bottom: 8px; }
+.notif-card {
+  min-width: 376px;
+  padding: 12px;
+  border-radius: $r-m;
+  background-color: $card;
+}
+.notif-card.popup { min-width: 376px; background-color: $surfaceContainer; border: 1px solid rgba($outlineVariant, 0.6); }
+.notif-card.critical { border: 1px solid $error; }
+.notif-avatar-wrap, .notif-avatar, .notif-appicon, .notif-image { min-width: 36px; min-height: 36px; border-radius: $full; }
+.notif-avatar { background-color: $surfaceContainerHighest; }
+.notif-letter { font-size: fs(14); font-weight: 500; }
+.notif-appicon { background-color: $surfaceContainerHighest; }
+.notif-appicon image { }
+.notif-image { background-size: cover; background-position: center; }
+.notif-text { margin-left: 14px; }
+.notif-meta { font-size: fs(12.5); color: $onSurfaceVariant; margin-top: 2px; }
+.notif-count {
+  padding: 2px 8px 2px 6px; border-radius: $full;
+  background-color: $surfaceContainerHigh;
+  label { font-size: fs(12.5); margin-left: 4px; }
+}
+.notif-summary { font-size: fs(14); font-weight: 500; margin-top: 10px; }
+.notif-body { font-size: fs(12.5); color: $onSurfaceVariant; margin-top: 4px; }
+.notif-actions { margin-top: 12px; }
+.notif-action label { color: $primary; font-size: fs(14); font-weight: 500; }
+.notif-action:hover label { color: mix($onSurface, $primary, 20%); }
+.notif-more { margin-left: 24px; }
+
+.notif-footer { margin-top: 10px; }
+.round-btn {
+  min-width: 40px; min-height: 40px;
+  border-radius: $full;
+  @include state($surfaceContainerHigh);
+  .icon { color: $onSurfaceVariant; }
+}
+.round-btn.active { background-color: $primary; .icon { color: $onPrimary; } }
+.clear-all {
+  min-height: 40px;
+  border-radius: $full;
+  @include state(mix($onSurfaceVariant, $surfaceContainerHighest, 40%));
+  label { font-size: fs(14); font-weight: 500; }
+}
+
+.nc-box { min-width: 468px; padding: 0 0 8px 0; }
+.nc-head { min-height: 40px; margin-bottom: 12px; }
+.nc-title { font-size: fs(17); font-weight: 500; }
+.nc-close {
+  min-width: 32px; min-height: 32px;
+  border-radius: $full;
+  @include state(mix($onSurfaceVariant, $surfaceContainerHighest, 50%));
+  .icon { color: $surface; }
+}
+
+// ---------------------------------------------------------------- OSD
+.osd-box { padding: 8px 12px; }
+.osd-icon {
+  min-width: 40px; min-height: 40px;
+  border-radius: $full;
+  background-color: $primary;
+  .icon { color: $onPrimary; }
+}
+.osd-scale { min-width: 210px; }
+.osd-dev { color: $primary; margin-left: 12px; }
+.osd-pct { min-width: 40px; color: $onSurface; }
+
+// ---------------------------------------------------------------- power menu
+.pm-box { min-width: 368px; }
+.pm-keys { min-width: 1px; min-height: 1px; color: transparent; caret-color: transparent; font-size: 1px; opacity: 0; }
+.pm-row {
+  min-height: 56px;
+  padding: 0 16px 0 18px;
+  border-radius: $r-m;
+  @include state($card);
+}
+.pm-row.sel { background-color: $sel; }
+.pm-icon { margin-right: 14px; }
+.pm-label { font-size: fs(16); }
+.pm-key {
+  min-width: 22px; min-height: 22px;
+  border-radius: $r-xs;
+  border: 1px solid mix($onSurface, $surface, 75%);
+  label { font-size: fs(11); font-weight: 500; }
+}
+.pm-hint { margin-top: 14px; label, .icon { font-size: fs(12.5); color: $onSurface; } }
+
+// ---------------------------------------------------------------- spotlight
+.spotlight { min-width: 596px; padding: 0 12px; }
+.spot-search {
+  min-height: 46px;
+  padding: 0 16px 0 20px;
+  border-radius: $full;
+  background-color: $surfaceContainerHigh;
+  border: 1px solid mix($outline, $surfaceContainerHigh, 60%);
+}
+.spot-search-icon { color: $onSurface; margin-right: 12px; }
+.spot-input { font-size: fs(16); caret-color: $primary; }
+.spot-placeholder { font-size: fs(16); color: $onSurfaceVariant; }
+.spot-clear { min-width: 28px; min-height: 28px; border-radius: $full; @include state(transparent); }
+.spot-header { margin: 14px 4px 8px 8px; }
+.spot-header-icon { color: $primary; margin-right: 10px; }
+.spot-header-title { color: $primary; font-size: fs(13); font-weight: 500; }
+.spot-count { color: $onSurfaceVariant; font-size: fs(12); }
+.spot-results { min-height: 464px; }
+.spot-row {
+  min-height: 56px;
+  padding: 0 14px;
+  border-radius: $r-s;
+  @include state($card);
+}
+.spot-row.sel { background-color: $sel; }
+.spot-row-icon { min-width: 40px; margin-right: 12px; }
+.spot-mat { min-width: 36px; min-height: 36px; border-radius: $r-s; background-color: $surfaceContainerHighest; .icon { color: $primary; } }
+.spot-swatch { min-width: 36px; min-height: 36px; border-radius: $full; }
+.swatch { min-width: 9px; min-height: 36px; }
+.spot-row-name { font-size: fs(16); }
+.spot-row-desc { font-size: fs(12.5); color: $onSurfaceVariant; margin-top: 2px; }
+.spot-current { color: $primary; }
+.spot-empty { margin-top: 140px; .icon { color: $onSurfaceVariant; } }
+.spot-empty-title { color: $onSurfaceVariant; margin-top: 8px; }
+.spot-walls { margin-top: 8px; }
+.spot-wall { padding: 4px; border-radius: $r-m; }
+.spot-wall.sel { background-color: $sel; }
+.spot-wall-thumb { min-width: 172px; min-height: 100px; border-radius: $r-s; background-size: cover; background-position: center; }
+.spot-wall-name { font-size: fs(12); margin-top: 4px; }
+.spot-footer {
+  min-height: 32px;
+  margin: 8px -12px 0 -12px;
+  padding: 0 12px;
+  border-radius: 0 0 $r-m $r-m;
+  background-color: $card;
+}
+.chip {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: $r-s;
+  border: 1px solid mix($outline, $surfaceContainer, 60%);
+  label { font-size: fs(12.5); }
+}
+.chip.active { background-color: mix($onSurfaceVariant, $surfaceContainerHighest, 40%); border-color: transparent; }
+.spot-hint { font-size: fs(12); color: $onSurfaceVariant; margin-left: 14px; }

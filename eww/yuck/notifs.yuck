@@ -1,0 +1,84 @@
+; Notifications (DMS NotificationPopup + NotificationCenter).
+; Popups: top-right, five stable slots (see notifd.rs) so each card animates
+; on its own. Center: a centred modal with grouped history.
+
+(defwindow notif-popups []
+  :geometry (geometry :anchor "top right" :x "6px" :y "4px")
+  :stacking "overlay" :exclusive false :focusable "none" :namespace "dmr-notifications"
+  (box :class "np-col" :orientation "v" :space-evenly false
+    (notif-slot :n {notifs.slots[0]})
+    (notif-slot :n {notifs.slots[1]})
+    (notif-slot :n {notifs.slots[2]})
+    (notif-slot :n {notifs.slots[3]})
+    (notif-slot :n {notifs.slots[4]})))
+
+(defwidget notif-slot [n]
+  (revealer :transition "slideleft" :reveal {n.show ?: false} :duration "220ms"
+    (box :class "notif-slot"
+      (notif-card :n n :popup true))))
+
+; One notification (DMS NotificationCard): letter/icon avatar, "App · time",
+; bold summary, body, then Dismiss + the app's actions.
+(defwidget notif-card [n ?popup ?count]
+  (eventbox :onmiddleclick "dmr notifs dismiss ${n.id ?: 0}"
+            :onrightclick "dmr notifs hide ${n.id ?: 0}"
+    (box :class "notif-card ${(n.critical ?: false) ? 'critical' : ''} ${popup == true ? 'popup' : ''}" :space-evenly false
+      (overlay :class "notif-avatar-wrap" :valign "start"
+        (box :class "notif-avatar"
+          (label :class "notif-letter" :text {substring(n.app ?: "?", 0, 1)}))
+        (box :visible {(n.image ?: "") == "" && (n.icon ?: "") != ""} :class "notif-appicon"
+          (image :icon {n.icon ?: ""} :icon-size "large-toolbar"))
+        (box :visible {(n.image ?: "") != ""} :class "notif-image"
+             :style "background-image: url('${n.image ?: ''}');"))
+      (box :orientation "v" :space-evenly false :hexpand true :class "notif-text"
+        (box :space-evenly false
+          (label :class "notif-meta" :xalign 0 :hexpand true :limit-width 40 :text "${n.app ?: ''} · ${n.time ?: ''}")
+          (box :visible {(count ?: 0) > 1} :class "notif-count"
+            (box :space-evenly false (icon :name "expand_more" :size 16) (label :text {count ?: 0}))))
+        (label :class "notif-summary" :xalign 0 :limit-width 44 :text {n.summary ?: ""})
+        (box :visible {(n.body ?: "") != ""}
+          (label :class "notif-body" :xalign 0 :limit-width 120 :wrap true :lines 3 :text {n.body ?: ""}))
+        (box :class "notif-actions" :space-evenly false :spacing 16
+          (for a in {n.actions ?: []}
+            (button :class "notif-action" :onclick "dmr notifs action ${n.id} ${a.i}"
+              (label :limit-width 20 :text {a.label})))
+          (button :class "notif-action" :onclick "dmr notifs dismiss ${n.id ?: 0}"
+            (label :text "Dismiss")))))))
+
+; A history group: newest card shows the count chip; click expands.
+(defwidget notif-group [g]
+  (box :orientation "v" :space-evenly false :spacing 4
+    (eventbox :cursor "pointer" :onclick "dmr notifs expand-idx ${g.idx}"
+      (notif-card :n {g.notifs[0]} :count {g.count}))
+    (box :visible {g.expanded && arraylength(g.notifs) > 1} :orientation "v" :space-evenly false :spacing 4 :class "notif-more"
+      (for n in {jq(g.notifs, ".[1:]")}
+        (notif-card :n n)))))
+
+(defwidget notif-footer []
+  (box :class "notif-footer" :space-evenly false :spacing 8
+    (button :class "round-btn ${status.dnd ? 'active' : ''}" :onclick "dmr dnd" :tooltip "Do not disturb"
+      (icon :name "do_not_disturb_on" :size 20 :fill {status.dnd}))
+    (button :class "clear-all" :hexpand true :onclick "dmr notifs clear"
+      (label :text "Clear All"))
+    (button :class "round-btn" :onclick "dmr notifs clear" :tooltip "Clear history"
+      (icon :name "history" :size 20))))
+
+; Notification center modal.
+(defwindow notifcenter [h]
+  :geometry (geometry :anchor "center")
+  :stacking "overlay" :exclusive false :focusable "none" :namespace "dmr-notifcenter"
+  (revealer :transition "crossfade" :reveal {ui.notifcenter} :duration "180ms"
+    (box :class "nc-box" :orientation "v" :space-evenly false :style "min-height: ${h}px;"
+      (centerbox :class "nc-head"
+        (box)
+        (label :class "nc-title" :text "Notifications")
+        (box :halign "end"
+          (button :class "nc-close" :onclick "dmr close notifcenter" (icon :name "close" :size 18))))
+      (scroll :vscroll true :hscroll false :vexpand true
+        (box :orientation "v" :space-evenly false :spacing 8
+          (box :visible {arraylength(notifs.groups) == 0} :class "notif-empty" :orientation "v" :space-evenly false
+            (icon :name "notifications_none" :size 48 :class "c-variant")
+            (label :class "notif-empty-text" :text "Nothing to see here"))
+          (for g in {notifs.groups}
+            (notif-group :g g))))
+      (notif-footer))))

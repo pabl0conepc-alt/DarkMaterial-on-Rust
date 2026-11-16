@@ -1,0 +1,32 @@
+; Power menu (DMS PowerMenuModal): a centred list with key hints.
+; Keys: ↑/↓ (or Tab) move, Enter runs, Esc closes, and the letter shortcuts
+; R X P L S D. A hidden patched input owns the keyboard: Esc/arrows arrive
+; through :onkeypress, letters through :onchange (cleared again by `lset`).
+(defwindow powermenu []
+  :geometry (geometry :anchor "center")
+  :stacking "overlay" :exclusive false :focusable "exclusive" :namespace "dmr-powermenu"
+  (revealer :transition "crossfade" :reveal {ui.powermenu} :duration "180ms"
+    (box :class "pm-box" :orientation "v" :space-evenly false
+      (input :class "pm-keys" :value "" :autofocus true
+             :onkeypress "dmr power key {}"
+             :onaccept "dmr power key accept"
+             :onchange "dmr power key <<'__DMR_EOF__'
+{}
+__DMR_EOF__")
+      (box :class "pm-list" :orientation "v" :space-evenly false :spacing 2
+        (pm-row :i 0 :id "reboot" :label "Reboot" :icon "restart_alt" :key "R")
+        (pm-row :i 1 :id "logout" :label "Log out" :icon "logout" :key "X")
+        (pm-row :i 2 :id "poweroff" :label "Power off" :icon "power_settings_new" :key "P")
+        (pm-row :i 3 :id "lock" :label "Lock" :icon "lock" :key "L")
+        (pm-row :i 4 :id "suspend" :label "Suspend" :icon "bedtime" :key "S")
+        (pm-row :i 5 :id "restart" :label "Restart Shell" :icon "refresh" :key "D"))
+      (box :class "pm-hint" :space-evenly false :halign "center" :spacing 6
+        (icon :name "keyboard" :size 16)
+        (label :text "Arrows + Enter, or press the key")))))
+
+(defwidget pm-row [i id label icon key]
+  (eventbox :cursor "pointer" :onclick "dmr power ${id}"
+    (box :class "pm-row ${ui.powerSel == i ? 'sel' : ''}" :space-evenly false
+      (icon :name icon :size 20 :class "pm-icon")
+      (label :class "pm-label" :xalign 0 :hexpand true :text label)
+      (box :class "pm-key" :valign "center" (label :text key)))))

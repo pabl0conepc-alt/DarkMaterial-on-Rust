@@ -1,0 +1,4 @@
+daemon/target/
+*.tmp*
+result
+result-*
