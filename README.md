@@ -19,6 +19,8 @@ A arquitetura é a mesma do meu projeto [Sheels](https://github.com/pabl0conepc-
 | ![](docs/screenshots/dash-wallpaper.jpg) | ![](docs/screenshots/notif.jpg) |
 | **Material You do wallpaper (`dynamic`)** | **Dash → Mídia (MPRIS)** |
 | ![](docs/screenshots/dynamic-dash.jpg) | ![](docs/screenshots/dash-media.jpg) |
+| **Tela de bloqueio (hyprlock)** | **Central com tema dinâmico** |
+| ![](docs/screenshots/lock.jpg) | ![](docs/screenshots/dynamic-cc.jpg) |
 
 ### Lado a lado com o original
 
@@ -32,6 +34,7 @@ Prints do DMS v2.1.2 (esquerda) e do DarkMaterial (direita), mesma resolução, 
 | Notificações | ![](docs/compare/notifcenter.jpg) |
 | Energia | ![](docs/compare/power.jpg) |
 | OSD | ![](docs/compare/osd.jpg) |
+| Bloqueio | ![](docs/compare/lock.jpg) |
 
 As medidas da interface (barra flutuante de 38 px a 4 px das bordas, pílulas de 30 px, cantos de 12 px, painéis em `surface`, cards em `surfaceContainer`, linhas de 56 px no Spotlight, central de 598 px, dash de 832 px) foram tiradas pixel a pixel desses prints.
 
