@@ -10,11 +10,17 @@ use std::process::Command;
 
 use crate::util::{expand, home, share_dir, which};
 
+/// println! that ignores a closed stdout (`dmr setup | head`).
+macro_rules! out {
+    () => {{ use std::io::Write; let _ = writeln!(std::io::stdout()); }};
+    ($($a:tt)*) => {{ use std::io::Write; let _ = writeln!(std::io::stdout(), $($a)*); }};
+}
+
 fn ok(msg: &str) {
-    println!("  \x1b[32m✓\x1b[0m {msg}");
+    out!("  \x1b[32m✓\x1b[0m {msg}");
 }
 fn warn(msg: &str) {
-    println!("  \x1b[33m!\x1b[0m {msg}");
+    out!("  \x1b[33m!\x1b[0m {msg}");
 }
 
 fn has_font(family: &str) -> bool {
@@ -66,7 +72,7 @@ const LAYOUT_MARK: &str = "# layout: `dmr setup` writes your system layout here 
 pub fn run(args: &[String]) -> i32 {
     let force = args.iter().any(|a| a == "--force");
     let check_only = args.iter().any(|a| a == "--check");
-    println!("DarkMaterial setup\n");
+    out!("DarkMaterial setup\n");
 
     // 1. driftwm config
     let cfg_dir = std::env::var_os("XDG_CONFIG_HOME")
@@ -107,7 +113,13 @@ pub fn run(args: &[String]) -> i32 {
                 // block in sync, so a read-only store link would not work.
                 let _ = std::fs::remove_file(&target);
                 match std::fs::write(&target, new) {
-                    Ok(()) => ok(&format!("installed driftwm config with DMS keybinds ({})", target.display())),
+                    Ok(()) => {
+                        ok(&format!("installed driftwm config with DMS keybinds ({})", target.display()));
+                        // A running shell refills the colour and wallpaper blocks now.
+                        if std::os::unix::net::UnixStream::connect(crate::util::socket_path()).is_ok() {
+                            let _ = crate::client::send(&["reload".to_string()]);
+                        }
+                    }
                     Err(e) => warn(&format!("cannot write {}: {e}", target.display())),
                 }
             }
@@ -128,7 +140,7 @@ pub fn run(args: &[String]) -> i32 {
     }
 
     // 3. health check
-    println!();
+    out!();
     for (bin, what) in [
         ("driftwm", "compositor"),
         ("eww", "widgets (bundled)"),
@@ -160,7 +172,7 @@ pub fn run(args: &[String]) -> i32 {
     } else if std::env::var_os("WAYLAND_DISPLAY").is_some() {
         warn("shell not running in this session: start it with `dmr daemon` (or log out and back in)");
     } else {
-        println!("\nDone. Log out, pick \"driftwm\" on the login screen and the shell starts by itself.");
+        out!("\nDone. Log out, pick \"driftwm\" on the login screen and the shell starts by itself.");
     }
     0
 }

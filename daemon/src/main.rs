@@ -31,28 +31,27 @@ mod ui;
 mod util;
 mod wm;
 
-const HELP: &str = "dmr — DankMaterialShell-style shell for driftwm + EWW
+const HELP: &str = "dmr — DankMaterialShell recreated for driftwm (EWW + Rust)
 
 USAGE:
-  dmr setup [--check|--force|--no-terminal]  per-user setup (driftwm + terminal configs, wallpapers) + health check
-  dmr daemon                     start the shell (backend + EWW)
-  dmr listen <topic>             stream topic JSON (wm status media notifs sys launcher ui theme info)
-  dmr get <topic>                print a topic once
-  dmr toggle <panel>             launcher | dashboard | session | sidebar | utilities
-  dmr open|close <panel>         (close with no panel closes everything)
-  dmr volume up|down|mute|set <0-100>   dmr mic mute|up|down|set <0-100>
+  dmr setup [--check|--force]       per-user setup (driftwm config with DMS keybinds, wallpapers) + health check
+  dmr daemon                        start the shell (backend + EWW)
+  dmr toggle|open|close <panel>     launcher (spotlight) | controlcenter | dash | notifcenter | powermenu | osd
+  dmr toggle dash <tab>             overview | media | wallpaper | weather (DMS `dash toggle <tab>`)
+  dmr close                         close every panel
+  dmr volume up|down|mute|set <0-100>     dmr mic mute|up|down|set <0-100>
   dmr brightness up|down|set <0-100>
-  dmr media play-pause|next|previous|stop|seek <s>|player <name>
-  dmr notifs clear|dnd|dismiss <id>|action <id> <key>
-  dmr wallpaper set <file>|random|list
-  dmr scheme set <name> [flavour] [mode] | mode dark|light|toggle | variant <name> | list
-  dmr wifi toggle|scan|connect <ssid> [password]|disconnect
-  dmr bluetooth toggle|scan|connect <mac>|disconnect <mac>
-  dmr lock | session <logout|shutdown|reboot|hibernate|suspend>
-  dmr idle-inhibit toggle | gamemode toggle
-  dmr nexus open [page]          settings panel        dmr config get|set <key> [value]
-  dmr reload                     reload config + EWW
-  dmr quit
+  dmr media play-pause|next|previous|stop|seek-to <s|N%>
+  dmr notifs clear|dismiss <id>|action <id> <n>     dmr dnd     dmr night     dmr idle-inhibit
+  dmr power [reboot|logout|poweroff|lock|suspend|restart]
+  dmr wallpaper set <file>|random|list      dmr scheme set dynamic|dms purple|catppuccin mocha|…
+  dmr scheme mode dark|light|toggle         dmr scheme variant tonalspot|vibrant|…
+  dmr wifi toggle|scan|disconnect           dmr bluetooth toggle|scan|connect <mac>
+  dmr lock | session logout|shutdown|reboot|hibernate|suspend
+  dmr config get|set <key> [value]          e.g. dmr config set bar.floating false
+  dmr settings                      open ~/.config/dmr/settings.json in $EDITOR
+  dmr get <topic> | listen <topic>  wm status media notifs load sys launcher ui theme info clock
+  dmr reload | quit
 ";
 
 fn main() {

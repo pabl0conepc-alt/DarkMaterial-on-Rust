@@ -272,8 +272,8 @@ scale.dank-slider {
   min-height: 96px;
   background-color: mix($primaryContainer, $surfaceContainer, 70%);
 }
-.big-clock { font-size: fs(66); font-weight: 800; margin-top: -6px; margin-bottom: -6px; color: $onPrimaryContainer; }
-.weather-card { min-width: 128px; min-height: 96px; padding: 12px 10px 8px 10px; }
+.big-clock { font-size: fs(64); font-weight: 800; color: $onPrimaryContainer; }
+.weather-card { min-width: 108px; min-height: 76px; padding: 12px 10px 8px 10px; }
 .weather-card-icon { color: $primary; }
 .weather-card-text { font-size: fs(12.5); margin-top: 6px; }
 
@@ -303,7 +303,7 @@ scale.dank-slider {
 .media-btn.play:hover { background-color: mix($onPrimary, $primary, 8%); }
 .media-btn.big { min-width: 56px; min-height: 56px; }
 
-.notif-col { min-width: 400px; min-height: 512px; padding: 12px; }
+.notif-col { min-width: 376px; min-height: 488px; padding: 12px; }
 .notif-empty { margin-top: 140px; }
 .notif-empty-text { color: $onSurfaceVariant; margin-top: 8px; }
 
@@ -378,6 +378,7 @@ scale.media-progress trough { min-height: 6px; border-radius: $full; background-
 .notif-action label { color: $primary; font-size: fs(14); font-weight: 500; }
 .notif-action:hover label { color: mix($onSurface, $primary, 20%); }
 .notif-more { margin-left: 24px; }
+.notif-col .notif-card, .nc-box .notif-card { min-width: 0; }
 
 .notif-footer { margin-top: 10px; }
 .round-btn {

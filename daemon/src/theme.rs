@@ -475,12 +475,17 @@ impl Theme {
             std::fs::read_to_string(Self::state_file()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
         *self.st.lock().unwrap() = loaded;
         {
-            // First run: Caelestia's bundled wallpaper + dynamic scheme.
+            // First run: the first image in the wallpaper folder + dynamic
+            // colours; with no wallpaper at all, DMS's stock purple theme.
             let mut st = self.st.lock().unwrap();
             if st.wallpaper.is_empty() || !Path::new(&st.wallpaper).exists() {
-                let def = share_dir().join("eww/assets/wallpaper.jpg");
-                if def.exists() {
-                    st.wallpaper = def.to_string_lossy().into_owned();
+                st.wallpaper.clear();
+                if let Some(first) = list_wallpapers().into_iter().next() {
+                    st.wallpaper = first.to_string_lossy().into_owned();
+                    st.colours.clear();
+                } else if st.name == "dynamic" {
+                    st.name = "dms".into();
+                    st.flavour = "purple".into();
                     st.colours.clear();
                 }
             }
