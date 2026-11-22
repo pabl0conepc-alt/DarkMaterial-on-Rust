@@ -73,7 +73,9 @@ impl Brightness {
         }
         if self.read() {
             app().publish_status();
-            app().ui.osd("brightness").await;
+            if crate::app::cfg().osd.enable_brightness {
+                app().ui.osd("brightness").await;
+            }
         }
     }
 
@@ -128,7 +130,7 @@ pub async fn run() {
     while rx.recv().await.is_some() {
         if b.read() {
             app().publish_status();
-            if !first {
+            if !first && crate::app::cfg().osd.enable_brightness {
                 app().ui.osd("brightness").await;
             }
         }

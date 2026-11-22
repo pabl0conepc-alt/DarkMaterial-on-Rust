@@ -4,10 +4,10 @@
 ; expands a detail list), four quick toggles, power profile + disk.
 ; Persistent: built once at startup, only revealed afterwards.
 
-(defwindow controlcenter []
-  :geometry (geometry :anchor "top right" :x "6px" :y "4px")
+(defwindow controlcenter [bottom]
+  :geometry (geometry :anchor "${bottom ? 'bottom' : 'top'} right" :x "6px" :y "4px")
   :stacking "overlay" :exclusive false :focusable "none" :namespace "dmr-controlcenter"
-  (revealer :transition "slidedown" :reveal {ui.controlcenter} :duration "250ms"
+  (revealer :transition {bottom ? "slideup" : "slidedown"} :reveal {ui.controlcenter} :duration "250ms"
     (box :class "popout cc" :orientation "v" :space-evenly false
       (cc-header)
       (box :class "cc-sliders" :space-evenly true :spacing 10
@@ -59,7 +59,7 @@
             (label :class "cc-windows-text" :xalign 0 :hexpand true
                    :text "${wm.windowCount} window${wm.windowCount == 1 ? '' : 's'}")
             (icon :name "chevron_right" :size 18 :class "c-variant")))
-        (button :class "cc-edit" :onclick "dmr settings"
+        (button :class "cc-edit" :onclick "dmr close; dmr settings open"
           (icon :name "edit" :size 20 :class "c-primary"))))))
 
 (defwidget cc-header []
@@ -76,7 +76,7 @@
         (icon :name "schedule" :size 14 :class "c-variant")
         (label :class "cc-sub-text" :text {replace(replace(replace(replace(info.uptime, " minutes?", "m"), " hours?", "h"), " days?", "d"), ",", "")})))
     (box :class "cc-actions" :space-evenly false :spacing 8 :valign "center"
-      (button :class "cc-action" :onclick "dmr settings" (icon :name "settings" :size 22))
+      (button :class "cc-action" :onclick "dmr close; dmr settings open" (icon :name "settings" :size 22))
       (button :class "cc-action" :onclick "dmr lock" (icon :name "lock" :size 22))
       (button :class "cc-action" :onclick "dmr close; dmr open powermenu" (icon :name "power_settings_new" :size 22)))))
 

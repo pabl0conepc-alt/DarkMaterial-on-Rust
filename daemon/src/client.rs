@@ -58,7 +58,7 @@ pub fn listen(topic: &str) -> i32 {
 /// when it is not running).
 const KNOWN: &[&str] = &[
     "app", "audio", "bluetooth", "bt", "brightness", "cal", "close", "config", "dash-tab", "dash-tab-scroll", "dnd",
-    "exec", "gamemode", "get", "hover", "idle-inhibit", "launcher", "lock", "lockinfo", "media", "mic", "night", "power", "cc-page",
+    "exec", "gamemode", "get", "hover", "idle-inhibit", "launcher", "lock", "lockinfo", "media", "mic", "night", "power", "cc-page", "prefs",
     "notifs", "open", "ping", "power-profile", "quit", "reload", "scheme", "screenshot", "session",
     "settings", "toggle", "unhover", "volume", "wallpaper", "wifi", "window", "workspace", "ws",
     "ws-scroll",

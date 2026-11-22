@@ -31,6 +31,7 @@ pub struct App {
     pub notifs: crate::notifd::Notifd,
     pub sys: crate::sysmon::SysMon,
     pub launcher: crate::launcher::Launcher,
+    pub prefs: crate::prefs::Prefs,
     pub theme: crate::theme::Theme,
     pub wm: crate::wm::Wm,
     pub info: crate::info::Info,
@@ -102,6 +103,7 @@ async fn async_main() -> anyhow::Result<()> {
         notifs: Default::default(),
         sys: Default::default(),
         launcher: Default::default(),
+        prefs: Default::default(),
         theme: Default::default(),
         wm: Default::default(),
         info: Default::default(),
@@ -151,6 +153,7 @@ async fn async_main() -> anyhow::Result<()> {
     tokio::spawn(crate::info::run());
     tokio::spawn(crate::clock::run());
     tokio::spawn(crate::eww::restart_on_crash());
+    tokio::spawn(crate::prefs::loader());
     tokio::spawn(async { app.launcher.preload().await });
 
     // EWW last: it immediately spawns its listeners which need the socket.

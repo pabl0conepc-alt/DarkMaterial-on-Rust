@@ -11,3 +11,4 @@
 (include "./yuck/notifs.yuck")
 (include "./yuck/osd.yuck")
 (include "./yuck/powermenu.yuck")
+(include "./yuck/settings.yuck")

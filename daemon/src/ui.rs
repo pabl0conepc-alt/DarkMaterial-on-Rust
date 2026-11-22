@@ -24,9 +24,13 @@ use crate::app::app;
 const MODAL: &[&str] = &["launcher", "notifcenter", "powermenu"];
 /// Bar popouts: close on outside click, no dim.
 const POPOUT: &[&str] = &["controlcenter", "dash"];
-const ALL: &[&str] = &["launcher", "notifcenter", "powermenu", "controlcenter", "dash", "osd"];
+const ALL: &[&str] = &["launcher", "notifcenter", "powermenu", "controlcenter", "dash", "osd", "settings"];
 /// Kept mapped (collapsed) between uses: building them is the expensive part.
-const PERSISTENT: &[&str] = &["controlcenter", "dash", "notifcenter"];
+/// Only panels whose collapsed revealer has zero height can stay mapped: a
+/// collapsed *crossfade* revealer keeps its full size and the invisible
+/// surface would swallow clicks (the notification center fades, so it is
+/// mapped on open instead).
+const PERSISTENT: &[&str] = &["controlcenter", "dash"];
 /// Revealer transition length used in the yuck (keep in sync).
 const ANIM_MS: u64 = 250;
 
@@ -64,6 +68,7 @@ fn key(name: &str) -> Option<&'static str> {
         "notifications" | "notification-center" => "notifcenter",
         "power" | "session" => "powermenu",
         "dashboard" | "dankdash" => "dash",
+        "prefs" => "settings",
         n => n,
     };
     ALL.iter().copied().find(|p| *p == name)
@@ -223,7 +228,11 @@ impl Ui {
             for (i, o) in outs.iter().enumerate() {
                 let screen = if o.0.is_empty() { Some("0") } else { Some(o.0.as_str()) };
                 let id = format!("bar-{i}");
-                let args = vec![("monitor", o.0.clone()), ("floating", c.bar.floating.to_string())];
+                let args = vec![
+                    ("monitor", o.0.clone()),
+                    ("floating", c.bar.floating.to_string()),
+                    ("bottom", (c.bar.position == "bottom").to_string()),
+                ];
                 eww.open("bar", &id, screen, &args).await;
                 opened.push(id);
             }
@@ -254,6 +263,13 @@ impl Ui {
         match k {
             // Notification center: a centred modal, at most 70% of the screen.
             "notifcenter" => vec![("h", ((h as f64 * 0.62) as i32).clamp(360, 760).to_string())],
+            // Bar popouts open from the bar's edge.
+            "controlcenter" | "dash" => vec![("bottom", (crate::app::cfg().bar.position == "bottom").to_string())],
+            // Settings: DMS opens it as a 960 px wide window.
+            "settings" => {
+                let (w, _) = self.active_size();
+                vec![("w", 960.min(w - 40).to_string()), ("h", ((h as f64 * 0.86) as i32).clamp(480, 1000).to_string())]
+            }
             _ => vec![],
         }
     }
@@ -287,7 +303,9 @@ impl Ui {
     }
 
     pub async fn close_all(&self) {
-        for p in ALL {
+        // The Settings window is a regular window in DMS: only its own
+        // close button / Esc / `dmr close settings` close it.
+        for p in ALL.iter().filter(|p| **p != "settings") {
             if self.is_shown(p) {
                 self.hide(p).await;
             }
@@ -341,6 +359,11 @@ impl Ui {
         }
         if k == "notifcenter" {
             app().notifs.hide_all_popups();
+        }
+        if k == "settings" {
+            // Loaded by prefs::loader (loading a page can write settings,
+            // which can open the OSD: no direct call back from here).
+            crate::prefs::request_load();
         }
     }
 

@@ -1,0 +1,585 @@
+; Settings (DMS Settings window): a 960 px window with a searchable category
+; list on the left and the page on the right. Values come from `cfg` and are
+; written with `dmr config set|step|cycle` (all safe, constant arguments);
+; free text goes through a quoted heredoc to `dmr prefs text <key> -`.
+; Mapped while open only; Esc in the search field or the X closes it.
+
+(defwindow settings [w h]
+  :geometry (geometry :anchor "center")
+  :stacking "fg" :exclusive false :focusable "ondemand" :namespace "dmr-settings"
+  (revealer :transition "crossfade" :reveal {ui.settings} :duration "160ms"
+    (box :class "sw" :orientation "v" :space-evenly false :style "min-width: ${w}px; min-height: ${h}px;"
+      (centerbox :class "sw-head"
+        (box)
+        (label :class "sw-title" :text "Settings")
+        (box :halign "end" :space-evenly false :spacing 8
+          (button :class "sw-headbtn" :valign "center" :onclick "dmr settings edit" :tooltip "Open settings.json"
+            (icon :name "data_object" :size 18))
+          (button :class "sw-close" :valign "center" :onclick "dmr close settings" (icon :name "close" :size 18))))
+      (box :class "sw-body" :space-evenly false :vexpand true
+        (box :class "sw-nav" :orientation "v" :space-evenly false
+          (box :class "sw-search" :space-evenly false
+            (icon :name "search" :size 20 :class "sw-search-icon")
+            (overlay :hexpand true
+              (input :class "sw-search-input" :hexpand true
+                     :onchange "dmr prefs search - <<'__DMR_EOF__'
+{}
+__DMR_EOF__"
+                     :onkeypress "[ {} = Escape ] && dmr close settings")
+              (box :visible {prefs.search == ""} :halign "start"
+                (label :class "sw-search-ph" :text "Search settings")))
+            (box :class "sw-avatar" :valign "center" (label :text {prefs.initial ?: "?"})))
+          (scroll :vscroll true :hscroll false :vexpand true
+            (box :orientation "v" :space-evenly false
+              (for p in {prefs.pages}
+                (box :visible {p.vis} :orientation "v" :space-evenly false
+                  (box :visible {p.gap && prefs.search == ""} :class "sw-gap")
+                  (eventbox :cursor "pointer" :onclick "dmr prefs page ${p.id}"
+                    (box :class "sw-navitem ${prefs.nav == p.id ? 'sel' : ''}" :space-evenly false
+                      (box :class "sw-navicon g${p.group}" :valign "center" (icon :name {p.icon} :size 20 :fill true))
+                      (box :orientation "v" :space-evenly false :valign "center"
+                        (label :class "sw-navtitle" :xalign 0 :text {p.title})
+                        (label :class "sw-navsub" :xalign 0 :text {p.sub})))))))))
+        (box :class "sw-content" :orientation "v" :space-evenly false :hexpand true
+          (box :class "sw-pagehead" :space-evenly false
+            (box :visible {prefs.parent != ""}
+              (button :class "sw-back" :onclick "dmr prefs page ${prefs.parent}" (icon :name "arrow_back" :size 22)))
+            (label :class "sw-pagetitle" :xalign 0 :text {prefs.title}))
+          (scroll :vscroll true :hscroll false :vexpand true
+            (box :orientation "v" :space-evenly false :class "sw-page"
+              (box :visible {prefs.page == "personalization"} (sp-personalization))
+              (box :visible {prefs.page == "theme"} (sp-theme))
+              (box :visible {prefs.page == "surfaces"} (sp-surfaces))
+              (box :visible {prefs.page == "typography"} (sp-typography))
+              (box :visible {prefs.page == "bar"} (sp-bar))
+              (box :visible {prefs.page == "barwidgets"} (sp-barwidgets))
+              (box :visible {prefs.page == "launcher"} (sp-launcher))
+              (box :visible {prefs.page == "dash"} (sp-dash))
+              (box :visible {prefs.page == "notifications"} (sp-notifications))
+              (box :visible {prefs.page == "osd"} (sp-osd))
+              (box :visible {prefs.page == "sound"} (sp-sound))
+              (box :visible {prefs.page == "displays"} (sp-displays))
+              (box :visible {prefs.page == "power"} (sp-power))
+              (box :visible {prefs.page == "network"} (sp-network))
+              (box :visible {prefs.page == "keybinds"} (sp-keybinds))
+              (box :visible {prefs.page == "apps"} (sp-apps))
+              (box :visible {prefs.page == "time"} (sp-time))
+              (box :visible {prefs.page == "about"} (sp-about)))))))))
+
+; ---------------------------------------------------------------- controls
+
+(defwidget s-section [title]
+  (label :class "s-section" :xalign 0 :text title))
+
+(defwidget s-card []
+  (box :class "s-card" :orientation "v" :space-evenly false :spacing 4 (children)))
+
+; Row: label (+ optional subtitle) on the left, control on the right.
+(defwidget s-row [label ?sub ?icon ?dim]
+  (box :class "s-row ${dim == true ? 'dim' : ''}" :space-evenly false
+    (box :visible {(icon ?: "") != ""} :class "s-row-icon" :valign "center" (icon :name {icon ?: ""} :size 22))
+    (box :orientation "v" :space-evenly false :valign "center" :hexpand true
+      (label :class "s-label" :xalign 0 :text label)
+      (box :visible {(sub ?: "") != ""} (label :class "s-sub" :xalign 0 :wrap true :text {sub ?: ""})))
+    (box :valign "center" :space-evenly false (children))))
+
+; Material 3 switch with the check mark in the knob (as in DMS).
+(defwidget s-switch [on cmd]
+  (button :class "s-switch ${on ? 'on' : ''}" :valign "center" :onclick cmd
+    (box :class "s-knob" :halign {on ? "end" : "start"}
+      (box :visible {on} (icon :name "check" :size 16 :class "s-knob-icon")))))
+
+(defwidget s-toggle [label key on ?sub ?icon]
+  (s-row :label label :sub {sub ?: ""} :icon {icon ?: ""}
+    (s-switch :on on :cmd "dmr config set ${key} toggle")))
+
+; Drop-down: the current value; options (children) unfold under the row.
+(defwidget s-dropdown [id label current ?sub]
+  (box :orientation "v" :space-evenly false
+    (s-row :label label :sub {sub ?: ""}
+      (button :valign "center" :class "s-dd ${prefs.open == id ? 'open' : ''}" :onclick "dmr prefs open ${id}"
+        (box :space-evenly false
+          (label :class "s-dd-val" :xalign 0 :hexpand true :text current)
+          (icon :name {prefs.open == id ? "arrow_drop_up" : "arrow_drop_down"} :size 22))))
+    (revealer :transition "slidedown" :reveal {prefs.open == id} :duration "150ms"
+      (box :class "s-dd-list" :space-evenly false :halign "end" :spacing 6 (children)))))
+
+(defwidget s-opt [label active cmd]
+  (button :class "s-opt ${active ? 'active' : ''}" :onclick cmd
+    (box :space-evenly false :spacing 6
+      (box :visible {active} (icon :name "check" :size 16))
+      (label :text label))))
+
+; Slider with − / + steppers (DMS DankSlider rows).
+(defwidget s-slider [label value min max cmd minus plus ?sub ?unit]
+  (box :class "s-row s-slider-row" :orientation "v" :space-evenly false
+    (box :space-evenly false
+      (label :class "s-label" :xalign 0 :hexpand true :text label)
+      (label :class "s-sub" :text "${value}${unit ?: ''}"))
+    (box :space-evenly false :class "s-slider-line"
+      (button :class "s-step" :onclick minus (icon :name "remove" :size 20))
+      (scale :class "dank-slider s-scale" :hexpand true :min min :max max :value value :onchange cmd)
+      (button :class "s-step" :onclick plus (icon :name "add" :size 20)))))
+
+(defwidget s-link [label page ?sub ?icon]
+  (eventbox :cursor "pointer" :onclick "dmr prefs page ${page}"
+    (s-row :label label :sub {sub ?: ""} :icon {icon ?: ""}
+      (icon :name "chevron_right" :size 22 :class "c-variant"))))
+
+; Text field: committed on Enter, through a heredoc (never interpolated).
+(defwidget s-text [label key value ?placeholder ?sub]
+  (s-row :label label :sub {sub ?: ""}
+    (box :class "s-text" :valign "center" :space-evenly false
+      (input :class "s-text-input" :value value :hexpand true
+             :onaccept "dmr prefs text ${key} - <<'__DMR_EOF__'
+{}
+__DMR_EOF__"))))
+
+; ---------------------------------------------------------------- pages
+
+(defwidget sp-personalization []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Appearance")
+    (box :class "s-card s-appearance" :space-evenly false :spacing 16
+      (box :class "s-wallprev" :style "background-image: url('${prefs.wallThumb}');" :valign "start"
+        (box :valign "end" :halign "start" :class "s-wallchip" (label :text {prefs.wallName})))
+      (box :orientation "v" :space-evenly false :hexpand true :spacing 8
+        (box :class "s-seg2" :space-evenly true :spacing 4
+          (button :class "s-seg ${theme.light ? 'active' : ''}" :onclick "dmr scheme mode light"
+            (box :space-evenly false :halign "center" :spacing 8 (icon :name "light_mode" :size 20) (label :text "Light")))
+          (button :class "s-seg ${theme.light ? '' : 'active'}" :onclick "dmr scheme mode dark"
+            (box :space-evenly false :halign "center" :spacing 8 (icon :name "dark_mode" :size 20) (label :text "Dark"))))
+        (s-toggle :label "Smart scheme" :sub "Pick dark/light and variant from the wallpaper" :key "services.smartScheme"
+                  :on {cfg.services.smartScheme})
+        (s-link :label "Theme & colors" :sub {prefs.themeLabel}
+                :page "theme" :icon "palette")))
+    (s-section :title "Wallpaper")
+    (box :class "s-card" :orientation "v" :space-evenly false
+      (box :class "s-walls" :space-evenly false :spacing 10
+        (for w in {jq(walls.items, ".[0:5]")}
+          (eventbox :cursor "pointer" :onclick "dmr wallpaper idx ${w.i}"
+            (box :class "s-wall ${w.current ? 'current' : ''}" :style "background-image: url('${w.thumb}');"))))
+      (box :space-evenly false :spacing 8 :class "s-wall-actions"
+        (button :class "s-btn" :onclick "dmr wallpaper random"
+          (box :space-evenly false :spacing 6 (icon :name "shuffle" :size 18) (label :text "Random")))
+        (button :class "s-btn" :onclick "dmr close settings; dmr toggle dash wallpaper"
+          (box :space-evenly false :spacing 6 (icon :name "wallpaper" :size 18) (label :text "Browse all")))
+        (button :class "s-btn" :onclick "dmr exec xdg-open ~/Pictures/Wallpapers"
+          (box :space-evenly false :spacing 6 (icon :name "folder_open" :size 18) (label :text "Open folder")))))))
+
+(defwidget sp-theme []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Theme")
+    (s-card
+      (box :orientation "v" :space-evenly false :class "s-theme-head"
+        (label :class "s-label s-center" :text "Current Theme: ${prefs.themeLabel}")
+        (label :class "s-sub s-center" :text "Material Design inspired color themes"))
+      (box :class "s-seg4" :halign "center" :space-evenly false :spacing 4
+        (s-opt :label "Generic" :active {prefs.mode == "generic"} :cmd "dmr scheme set stock purple")
+        (s-opt :label "Auto" :active {prefs.mode == "auto"} :cmd "dmr scheme set dynamic")
+        (s-opt :label "Browse" :active {prefs.mode == "browse"} :cmd "dmr scheme set catppuccin mocha"))
+      (box :visible {prefs.mode == "generic"} :class "s-stock" :orientation "v" :space-evenly false :spacing 10
+        (box :space-evenly true :spacing 10
+          (for t in {jq(prefs.stock, ".[0:5]")}
+            (s-stock-tile :t t)))
+        (box :space-evenly true :spacing 10
+          (for t in {jq(prefs.stock, ".[5:10]")}
+            (s-stock-tile :t t))))
+      (box :visible {prefs.mode == "auto"} :orientation "v" :space-evenly false
+        (label :class "s-sub s-pad" :xalign 0 :wrap true
+               :text "Colors are generated from the wallpaper (Material You). Pick how they are mixed:")
+        (box :class "s-variants" :orientation "v" :space-evenly false :spacing 6
+          (for row in {[0, 3, 6]}
+            (box :space-evenly true :spacing 6
+              (for v in {jq(prefs.variants, ".[${row}:${row + 3}]")}
+                (s-opt :label {v.name} :active {v.current} :cmd "dmr scheme variant ${v.id}"))))))
+      (box :visible {prefs.mode == "browse"} :orientation "v" :space-evenly false :spacing 4 :class "s-browse"
+        (for sc in {prefs.schemes}
+          (eventbox :cursor "pointer" :onclick "dmr scheme set ${sc.name} ${sc.flavour}"
+            (box :class "s-scheme ${sc.current ? 'current' : ''}" :space-evenly false
+              (box :class "s-swatches" :space-evenly true
+                (for c in {sc.colours}
+                  (box :class "s-swatch" :style "background-color: ${c};")))
+              (label :class "s-label" :xalign 0 :hexpand true :text {sc.label})
+              (box :visible {sc.current} (icon :name "check" :size 20 :class "c-primary")))))))))
+
+(defwidget s-stock-tile [t]
+  (eventbox :cursor "pointer" :onclick "dmr scheme set stock ${t.id}"
+    (box :class "s-stocktile ${t.current ? 'current' : ''}" :orientation "v" :space-evenly false
+      (box :class "s-stockdot" :halign "center" :style "background-color: ${t.color};")
+      (label :class "s-stockname" :text {t.name}))))
+
+(defwidget sp-surfaces []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Surfaces")
+    (s-card
+      (s-toggle :label "Transparency" :sub "Panels show what is behind them" :key "appearance.transparency"
+                :on {cfg.appearance.transparency})
+      (box :visible {cfg.appearance.transparency}
+        (s-slider :label "Panel opacity" :value {round(cfg.appearance.transparencyBase * 100, 0)} :unit "%" :min 40 :max 101
+                  :cmd "dmr config setpct appearance.transparencyBase {}"
+                  :minus "dmr config step appearance.transparencyBase -0.05 0.4 1"
+                  :plus "dmr config step appearance.transparencyBase 0.05 0.4 1")))
+    (s-section :title "Corners")
+    (s-card
+      (s-slider :label "Corner radius" :value {round(cfg.appearance.radius * 100, 0)} :unit "%" :min 0 :max 201
+                :cmd "dmr config setpct appearance.radius {}"
+                :minus "dmr config step appearance.radius -0.25 0 2"
+                :plus "dmr config step appearance.radius 0.25 0 2"))))
+
+(defwidget sp-typography []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Font")
+    (s-card
+      (box :class "s-fontprev" :orientation "v" :space-evenly false
+        (label :class "s-fp1" :xalign 0 :text "Aa Bb Cc 123")
+        (label :class "s-fp2" :xalign 0 :text "The quick brown fox jumps over the lazy dog"))
+      (s-dropdown :id "font" :label "Family" :current {cfg.appearance.fontFamily}
+        (box :orientation "v" :space-evenly false :spacing 4
+          (for f in {prefs.fonts}
+            (s-opt :label f :active {cfg.appearance.fontFamily == f}
+                   :cmd "dmr prefs open font; dmr config set appearance.fontFamily '${f}'"))))
+      (s-slider :label "Scale" :value {round(cfg.appearance.fontScale * 100, 0)} :unit "%" :min 80 :max 141
+                :cmd "dmr config setpct appearance.fontScale {}"
+                :minus "dmr config step appearance.fontScale -0.05 0.8 1.4"
+                :plus "dmr config step appearance.fontScale 0.05 0.8 1.4"))
+    (s-section :title "Animations")
+    (s-card
+      (s-slider :label "Duration" :value {round(cfg.appearance.animScale * 100, 0)} :unit "%" :min 0 :max 201
+                :sub "0% turns animations off"
+                :cmd "dmr config setpct appearance.animScale {}"
+                :minus "dmr config step appearance.animScale -0.25 0 2"
+                :plus "dmr config step appearance.animScale 0.25 0 2"))))
+
+(defwidget sp-bar []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Position")
+    (box :class "s-card s-positions" :space-evenly true :spacing 12
+      (s-pos :label "Top" :pos "top")
+      (s-pos :label "Bottom" :pos "bottom"))
+    (s-section :title "Appearance")
+    (s-card
+      (s-toggle :label "Floating" :sub "Gap around the bar and rounded corners" :key "bar.floating" :on {cfg.bar.floating}))
+    (s-section :title "Behaviour")
+    (s-card
+      (s-toggle :label "Scroll wheel on workspaces" :sub "Switch workspace by scrolling over the switcher"
+                :key "bar.scrollActions.workspaces" :on {cfg.bar.scrollActions.workspaces} :icon "mouse")
+      (s-toggle :label "Scroll wheel on control center" :sub "Change the volume by scrolling over it"
+                :key "bar.scrollActions.volume" :on {cfg.bar.scrollActions.volume} :icon "volume_up")
+      (s-toggle :label "Show empty workspaces" :key "bar.workspaces.showUnoccupied" :on {cfg.bar.workspaces.showUnoccupied})
+      (s-slider :label "Workspaces" :value {cfg.bar.workspaces.shown} :min 1 :max 11
+                :cmd "dmr config set bar.workspaces.shown {}"
+                :minus "dmr config step bar.workspaces.shown -1 1 10" :plus "dmr config step bar.workspaces.shown 1 1 10")
+      (s-dropdown :id "sysint" :label "CPU / memory refresh"
+                  :current {cfg.bar.sysInterval == 0 ? "Off" : "${cfg.bar.sysInterval / 1000} s"}
+        (s-opt :label "1 s" :active {cfg.bar.sysInterval == 1000} :cmd "dmr prefs open sysint; dmr config set bar.sysInterval 1000")
+        (s-opt :label "3 s" :active {cfg.bar.sysInterval == 3000} :cmd "dmr prefs open sysint; dmr config set bar.sysInterval 3000")
+        (s-opt :label "5 s" :active {cfg.bar.sysInterval == 5000} :cmd "dmr prefs open sysint; dmr config set bar.sysInterval 5000")
+        (s-opt :label "10 s" :active {cfg.bar.sysInterval == 10000} :cmd "dmr prefs open sysint; dmr config set bar.sysInterval 10000")))
+    (s-link :label "Bar widgets" :sub "Add, reorder, configure" :page "barwidgets" :icon "widgets")))
+
+(defwidget s-pos [label pos]
+  (eventbox :cursor "pointer" :onclick "dmr config set bar.position ${pos}"
+    (box :class "s-postile ${cfg.bar.position == pos ? 'current' : ''}" :orientation "v" :space-evenly false
+      (box :class "s-posscreen" :orientation "v" :space-evenly false :halign "center"
+        (box :visible {pos == "bottom"} :vexpand true)
+        (box :class "s-posbar"))
+      (label :class "s-stockname" :text label))))
+
+(defwidget sp-barwidgets []
+  (box :orientation "v" :space-evenly false
+    (box :space-evenly false
+      (s-section :title "Sections")
+      (box :hexpand true)
+      (button :class "s-btn" :onclick "dmr prefs reset"
+        (box :space-evenly false :spacing 6 (icon :name "refresh" :size 18) (label :text "Reset"))))
+    (box :class "s-card"
+      (label :class "s-sub" :xalign 0 :wrap true
+             :text "Use the arrows to reorder. The switch hides a widget without removing it; X removes it."))
+    (s-wsection :title "Left section" :sec "left" :items {prefs.left})
+    (s-wsection :title "Center section" :sec "center" :items {prefs.center})
+    (s-wsection :title "Right section" :sec "right" :items {prefs.right})))
+
+(defwidget s-wsection [title sec items]
+  (box :orientation "v" :space-evenly false
+    (s-section :title title)
+    (s-card
+      (box :visible {arraylength(items) == 0} :class "s-pad" (label :class "s-sub" :text "No widgets"))
+      (box :orientation "v" :space-evenly false (for it in items
+        (box :class "s-wrow" :space-evenly false
+          (box :orientation "v" :class "s-arrows" :valign "center"
+            (button :class "s-arrow" :onclick "dmr prefs move ${sec} ${it.i} up" (icon :name "keyboard_arrow_up" :size 18))
+            (button :class "s-arrow" :onclick "dmr prefs move ${sec} ${it.i} down" (icon :name "keyboard_arrow_down" :size 18)))
+          (box :class "s-wicon" :valign "center" (icon :name {it.icon} :size 22))
+          (box :orientation "v" :space-evenly false :valign "center" :hexpand true
+            (label :class "s-label" :xalign 0 :text {it.name})
+            (label :class "s-sub" :xalign 0 :text {it.desc}))
+          (s-switch :on {it.on} :cmd "dmr prefs hide ${it.id}")
+          (button :class "s-x" :valign "center" :onclick "dmr prefs remove ${sec} ${it.i}" (icon :name "close" :size 20))))))
+    (box :halign "center" :class "s-addwrap"
+      (button :class "s-add" :onclick "dmr prefs pick ${sec}"
+        (box :space-evenly false :spacing 6 (icon :name "add" :size 18) (label :text "Add widget"))))
+    (revealer :transition "slidedown" :reveal {prefs.pick == sec} :duration "150ms"
+      (s-card
+        (box :visible {arraylength(prefs.available) == 0} :class "s-pad"
+          (label :class "s-sub" :text "Every widget is already in the bar"))
+        (box :orientation "v" :space-evenly false (for w in {prefs.available}
+          (eventbox :cursor "pointer" :onclick "dmr prefs add ${sec} ${w.id}"
+            (box :class "s-wrow s-pick" :space-evenly false
+              (box :class "s-wicon" :valign "center" (icon :name {w.icon} :size 22))
+              (box :orientation "v" :space-evenly false :valign "center" :hexpand true
+                (label :class "s-label" :xalign 0 :text {w.name})
+                (label :class "s-sub" :xalign 0 :text {w.desc}))
+              (icon :name "add_circle" :size 22 :class "c-primary")))))))))
+
+(defwidget sp-launcher []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Search")
+    (s-card
+      (s-slider :label "Results shown" :value {cfg.launcher.maxShown} :min 4 :max 13
+                :cmd "dmr config set launcher.maxShown {}"
+                :minus "dmr config step launcher.maxShown -1 4 12" :plus "dmr config step launcher.maxShown 1 4 12")
+      (s-toggle :label "Fuzzy search" :sub "Match apps even with typos" :key "launcher.useFuzzy.apps" :on {cfg.launcher.useFuzzy.apps})
+      (s-toggle :label "Vim keys" :sub "Ctrl+J / Ctrl+K move the selection" :key "launcher.vimKeybinds" :on {cfg.launcher.vimKeybinds}))
+    (s-section :title "Actions")
+    (s-card
+      (s-toggle :label "Power actions" :sub "Show shutdown, reboot and log out among the actions"
+                :key "launcher.enableDangerousActions" :on {cfg.launcher.enableDangerousActions}))))
+
+(defwidget sp-dash []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Tabs")
+    (s-card
+      (s-toggle :label "Media" :key "dashboard.showMedia" :on {cfg.dashboard.showMedia} :icon "music_note")
+      (s-toggle :label "Wallpapers" :key "dashboard.showWallpapers" :on {cfg.dashboard.showWallpapers} :icon "wallpaper")
+      (s-toggle :label "Weather" :key "dashboard.showWeather" :on {cfg.dashboard.showWeather} :icon "wb_sunny"))
+    (s-link :label "Weather" :sub "Location and units" :page "time" :icon "partly_cloudy_day")))
+
+(defwidget sp-notifications []
+  (box :orientation "v" :space-evenly false
+    (box :space-evenly false
+      (s-section :title "Popups")
+      (box :hexpand true)
+      (button :class "s-btn primary" :onclick "dmr notifs test" (label :text "Preview")))
+    (s-card
+      (s-row :label "Do not disturb" :sub "Only critical notifications pop up"
+        (s-switch :on {status.dnd} :cmd "dmr dnd"))
+      (s-row :label "Over fullscreen" :sub "Show popups over fullscreen windows"
+        (s-switch :on {cfg.notifs.fullscreen != "off"}
+                  :cmd "dmr config set notifs.fullscreen ${cfg.notifs.fullscreen == 'off' ? 'on' : 'off'}"))
+      (s-slider :label "Grouped preview" :sub "Notifications shown per app group" :value {cfg.notifs.groupPreviewNum} :min 1 :max 7
+                :cmd "dmr config set notifs.groupPreviewNum {}"
+                :minus "dmr config step notifs.groupPreviewNum -1 1 6" :plus "dmr config step notifs.groupPreviewNum 1 1 6"))
+    (s-section :title "Timeouts")
+    (s-card
+      (s-dropdown :id "timeout" :label "Normal"
+                  :current {!cfg.notifs.expire ? "Never" : "${cfg.notifs.defaultExpireTimeout / 1000} seconds"}
+        (s-opt :label "3 seconds" :active {cfg.notifs.expire && cfg.notifs.defaultExpireTimeout == 3000}
+               :cmd "dmr prefs open timeout; dmr config set notifs.expire true; dmr config set notifs.defaultExpireTimeout 3000")
+        (s-opt :label "5 seconds" :active {cfg.notifs.expire && cfg.notifs.defaultExpireTimeout == 5000}
+               :cmd "dmr prefs open timeout; dmr config set notifs.expire true; dmr config set notifs.defaultExpireTimeout 5000")
+        (s-opt :label "8 seconds" :active {cfg.notifs.expire && cfg.notifs.defaultExpireTimeout == 8000}
+               :cmd "dmr prefs open timeout; dmr config set notifs.expire true; dmr config set notifs.defaultExpireTimeout 8000")
+        (s-opt :label "10 seconds" :active {cfg.notifs.expire && cfg.notifs.defaultExpireTimeout == 10000}
+               :cmd "dmr prefs open timeout; dmr config set notifs.expire true; dmr config set notifs.defaultExpireTimeout 10000")
+        (s-opt :label "Never" :active {!cfg.notifs.expire} :cmd "dmr prefs open timeout; dmr config set notifs.expire false"))
+      (s-row :label "Critical" :sub "Critical notifications stay until dismissed" (label :class "s-sub" :text "Never")))))
+
+(defwidget sp-osd []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "On-screen displays")
+    (s-card
+      (s-toggle :label "Enable OSD" :key "osd.enabled" :on {cfg.osd.enabled} :icon "picture_in_picture")
+      (s-toggle :label "Brightness" :sub "Show the OSD when the brightness changes" :key "osd.enableBrightness" :on {cfg.osd.enableBrightness} :icon "brightness_6")
+      (s-toggle :label "Microphone" :sub "Show the OSD when the microphone volume changes" :key "osd.enableMicrophone" :on {cfg.osd.enableMicrophone} :icon "mic")
+      (s-dropdown :id "osddelay" :label "Hide after" :current "${cfg.osd.hideDelay / 1000} s"
+        (s-opt :label "1 s" :active {cfg.osd.hideDelay == 1000} :cmd "dmr prefs open osddelay; dmr config set osd.hideDelay 1000")
+        (s-opt :label "1.5 s" :active {cfg.osd.hideDelay == 1500} :cmd "dmr prefs open osddelay; dmr config set osd.hideDelay 1500")
+        (s-opt :label "2 s" :active {cfg.osd.hideDelay == 2000} :cmd "dmr prefs open osddelay; dmr config set osd.hideDelay 2000")
+        (s-opt :label "3 s" :active {cfg.osd.hideDelay == 3000} :cmd "dmr prefs open osddelay; dmr config set osd.hideDelay 3000")))))
+
+(defwidget sp-sound []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Output")
+    (s-card
+      (s-slider :label "Volume" :value {status.audio.vol} :unit "%" :min 0 :max 101 :cmd "dmr volume set {}"
+                :minus "dmr volume down" :plus "dmr volume up")
+      (box :visible {arraylength(status.audio.sinks) == 0} :class "s-pad" (label :class "s-sub" :text "No output devices"))
+      (box :orientation "v" :space-evenly false (for d in {status.audio.sinks}
+        (eventbox :cursor "pointer" :onclick "dmr audio sink ${d.i}"
+          (box :class "s-wrow" :space-evenly false
+            (box :class "s-wicon" :valign "center" (icon :name "speaker" :size 22))
+            (label :class "s-label" :xalign 0 :hexpand true :limit-width 50 :text {d.desc})
+            (box :visible {d.active} (icon :name "check" :size 20 :class "c-primary")))))))
+    (s-section :title "Input")
+    (s-card
+      (s-slider :label "Microphone" :value {status.audio.micVol} :unit "%" :min 0 :max 101 :cmd "dmr mic set {}"
+                :minus "dmr mic down" :plus "dmr mic up")
+      (box :visible {arraylength(status.audio.sources) == 0} :class "s-pad" (label :class "s-sub" :text "No input devices"))
+      (box :orientation "v" :space-evenly false (for d in {status.audio.sources}
+        (eventbox :cursor "pointer" :onclick "dmr audio source ${d.i}"
+          (box :class "s-wrow" :space-evenly false
+            (box :class "s-wicon" :valign "center" (icon :name "mic" :size 22))
+            (label :class "s-label" :xalign 0 :hexpand true :limit-width 50 :text {d.desc})
+            (box :visible {d.active} (icon :name "check" :size 20 :class "c-primary")))))))
+    (s-section :title "Behaviour")
+    (s-card
+      (s-dropdown :id "volstep" :label "Volume step" :current "${round(cfg.services.audioIncrement * 100, 0)}%"
+        (s-opt :label "2%" :active {cfg.services.audioIncrement == 0.02} :cmd "dmr prefs open volstep; dmr config set services.audioIncrement 0.02")
+        (s-opt :label "5%" :active {cfg.services.audioIncrement == 0.05} :cmd "dmr prefs open volstep; dmr config set services.audioIncrement 0.05")
+        (s-opt :label "10%" :active {cfg.services.audioIncrement == 0.1} :cmd "dmr prefs open volstep; dmr config set services.audioIncrement 0.1"))
+      (s-row :label "Allow volume above 100%" :sub "Up to 150%"
+        (s-switch :on {cfg.services.maxVolume > 1} :cmd "dmr config set services.maxVolume ${cfg.services.maxVolume > 1 ? 1.0 : 1.5}"))
+      (s-text :label "Preferred media player" :key "services.defaultPlayer" :value {cfg.services.defaultPlayer}))))
+
+(defwidget sp-displays []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Night mode")
+    (s-card
+      (s-row :label "Night mode" :sub "Warmer colours with wlsunset" :icon "bedtime"
+        (s-switch :on {status.night} :cmd "dmr night"))
+      (s-slider :label "Temperature" :value {cfg.general.nightTemp} :unit " K" :min 2500 :max 6501
+                :cmd "dmr config set general.nightTemp {}"
+                :minus "dmr config step general.nightTemp -250 2500 6500" :plus "dmr config step general.nightTemp 250 2500 6500"))
+    (s-section :title "Brightness")
+    (s-card
+      (box :visible {!status.bright.available} :class "s-pad" (label :class "s-sub" :text "No backlight on this display"))
+      (box :visible {status.bright.available}
+        (s-slider :label "Brightness" :value {status.bright.pct} :unit "%" :min 1 :max 101 :cmd "dmr brightness set {}"
+                  :minus "dmr brightness down" :plus "dmr brightness up")))))
+
+(defwidget sp-power []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Power profile")
+    (s-card
+      (box :visible {arraylength(status.bat.profiles) == 0} :class "s-pad"
+        (label :class "s-sub" :text "power-profiles-daemon is not running"))
+      (box :visible {arraylength(status.bat.profiles) > 0} :class "s-seg4" :halign "center" :space-evenly false :spacing 4
+        (s-opt :label "Power saver" :active {status.bat.profile == "power-saver"} :cmd "dmr power-profile power-saver")
+        (s-opt :label "Balanced" :active {status.bat.profile == "balanced"} :cmd "dmr power-profile balanced")
+        (s-opt :label "Performance" :active {status.bat.profile == "performance"} :cmd "dmr power-profile performance")))
+    (s-section :title "Battery")
+    (s-card
+      (box :visible {!status.bat.present} :class "s-pad" (label :class "s-sub" :text "No battery"))
+      (box :visible {status.bat.present} :orientation "v" :space-evenly false
+        (s-row :label "Charge" :icon {status.bat.icon} (label :class "s-sub" :text "${status.bat.pct}%"))
+        (s-row :label "Status" (label :class "s-sub" :text {status.bat.charging ? "Charging" : (status.bat.onAc ? "Plugged in" : "On battery")}))
+        (s-row :label "Time left" (label :class "s-sub" :text {status.bat.time != "" ? status.bat.time : "—"}))))
+    (s-section :title "Session")
+    (s-card
+      (s-row :label "Keep awake" :sub "Block idle lock and sleep" :icon "coffee"
+        (s-switch :on {status.idleInhibit} :cmd "dmr idle-inhibit")))))
+
+(defwidget sp-network []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Wi-Fi")
+    (s-card
+      (s-row :label "Wi-Fi" :sub {status.net.connected ? status.net.name : "Not connected"} :icon {status.net.icon}
+        (s-switch :on {status.net.wifiEnabled} :cmd "dmr wifi toggle"))
+      (box :visible {ui.wifiAskPassword != ""} :class "cc-pass" :space-evenly false
+        (icon :name "key" :size 18 :class "c-primary")
+        (input :class "cc-pass-input" :hexpand true :password true
+               :onaccept "dmr wifi password <<'__DMR_EOF__'
+{}
+__DMR_EOF__"))
+      (box :orientation "v" :space-evenly false (for n in {status.net.networks}
+        (eventbox :cursor "pointer" :onclick {n.active ? "dmr wifi disconnect" : "dmr wifi connect-idx ${n.i}"}
+          (box :class "s-wrow" :space-evenly false
+            (box :class "s-wicon" :valign "center" (icon :name {n.icon} :size 22))
+            (box :orientation "v" :space-evenly false :valign "center" :hexpand true
+              (label :class "s-label" :xalign 0 :limit-width 40 :text {n.ssid})
+              (label :class "s-sub" :xalign 0 :text "${n.active ? 'Connected · ' : ''}${n.band}${n.secure ? ' · Secured' : ''}"))
+            (box :visible {n.active} (icon :name "check" :size 20 :class "c-primary")))))))
+    (s-section :title "Bluetooth")
+    (s-card
+      (s-row :label "Bluetooth" :sub {!status.bt.available ? "No adapters" : (status.bt.connected > 0 ? "${status.bt.connected} connected" : "")} :icon "bluetooth"
+        (s-switch :on {status.bt.powered} :cmd "dmr bluetooth toggle"))
+      (box :orientation "v" :space-evenly false (for d in {status.bt.devices}
+        (eventbox :cursor "pointer" :onclick "dmr bluetooth ${d.connected ? 'disconnect' : 'connect'} ${d.address}"
+          (box :class "s-wrow" :space-evenly false
+            (box :class "s-wicon" :valign "center" (icon :name {d.icon} :size 22))
+            (box :orientation "v" :space-evenly false :valign "center" :hexpand true
+              (label :class "s-label" :xalign 0 :limit-width 40 :text {d.name})
+              (label :class "s-sub" :xalign 0 :text {d.status}))
+            (box :visible {d.connected} (icon :name "check" :size 20 :class "c-primary")))))))))
+
+(defwidget sp-keybinds []
+  (box :orientation "v" :space-evenly false
+    (box :class "s-kbsearch" :space-evenly false
+      (icon :name "search" :size 20 :class "c-variant")
+      (overlay :hexpand true
+        (input :class "sw-search-input" :hexpand true
+               :onchange "dmr prefs kbsearch - <<'__DMR_EOF__'
+{}
+__DMR_EOF__")
+        (box :visible {prefs.kbSearch == ""} :halign "start" (label :class "sw-search-ph" :text "Search shortcuts..."))))
+    (box :space-evenly false
+      (label :class "s-section" :xalign 0 :hexpand true :text "Shortcuts (${arraylength(prefs.binds)})")
+      (button :class "s-btn" :onclick "dmr exec xdg-open ~/.config/driftwm/config.toml"
+        (box :space-evenly false :spacing 6 (icon :name "edit" :size 18) (label :text "Edit in driftwm config"))))
+    (s-card
+      (box :visible {arraylength(prefs.binds) == 0} :class "s-pad" (label :class "s-sub" :text "No keybinds found"))
+      (box :orientation "v" :space-evenly false (for b in {prefs.binds}
+        (box :class "s-kbrow" :space-evenly false
+          (label :class "s-label" :xalign 0 :hexpand true :limit-width 40 :text {b.desc})
+          (box :space-evenly false :spacing 4
+            (for k in {b.keys}
+              (box :class "s-kbd" :valign "center" (label :text k))))))))))
+
+(defwidget sp-apps []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Default apps")
+    (s-card
+      (s-text :label "Terminal" :sub "Used by Super+T and terminal launcher entries" :key "general.terminal" :value {cfg.general.terminal})
+      (s-text :label "File manager" :key "general.explorer" :value {cfg.general.explorer})
+      (s-text :label "Audio mixer" :key "general.audio" :value {cfg.general.audio}))
+    (label :class "s-sub s-pad" :xalign 0 :wrap true :text "Press Enter to save a field.")))
+
+(defwidget sp-time []
+  (box :orientation "v" :space-evenly false
+    (s-section :title "Time")
+    (s-card
+      (s-dropdown :id "clock" :label "Format"
+                  :current {cfg.services.clockFormat == "12h" ? "12-hour" : (cfg.services.clockFormat == "24h" ? "24-hour" : "System default")}
+        (s-opt :label "System default" :active {cfg.services.clockFormat == "auto"} :cmd "dmr prefs open clock; dmr config set services.clockFormat auto")
+        (s-opt :label "24-hour" :active {cfg.services.clockFormat == "24h"} :cmd "dmr prefs open clock; dmr config set services.clockFormat 24h")
+        (s-opt :label "12-hour" :active {cfg.services.clockFormat == "12h"} :cmd "dmr prefs open clock; dmr config set services.clockFormat 12h")))
+    (s-section :title "Weather")
+    (s-card
+      (s-text :label "Location" :sub "City name, or latitude,longitude. Empty = detect" :key "services.weatherLocation"
+              :value {cfg.services.weatherLocation})
+      (s-row :label "Units"
+        (box :space-evenly false :spacing 4
+          (s-opt :label "Auto" :active {cfg.services.weatherUnits == "auto"} :cmd "dmr config set services.weatherUnits auto")
+          (s-opt :label "°C" :active {cfg.services.weatherUnits == "celsius"} :cmd "dmr config set services.weatherUnits celsius")
+          (s-opt :label "°F" :active {cfg.services.weatherUnits == "fahrenheit"} :cmd "dmr config set services.weatherUnits fahrenheit")))
+      (s-row :label "Now" :icon {info.weather.available ? info.weather.icon : "cloud_off"}
+        (label :class "s-sub" :text {info.weather.available ? "${info.weather.temp} · ${info.weather.desc}" : "No weather data"})))))
+
+(defwidget sp-about []
+  (box :orientation "v" :space-evenly false
+    (box :class "s-about-head" :orientation "v" :space-evenly false :halign "center"
+      (label :class "s-about-title" :text "dmr ${prefs.version}")
+      (box :halign "center" :class "s-chip" (label :text "DarkMaterial"))
+      (button :class "s-btn primary s-about-btn" :halign "center"
+              :onclick "dmr exec xdg-open https://github.com/pabl0conepc-alt/DarkMaterial-on-Rust"
+        (box :space-evenly false :spacing 8 (icon :name "code" :size 18) (label :text "Source code"))))
+    (s-card
+      (label :class "s-sub s-pad" :xalign 0 :wrap true
+             :text "DarkMaterial recreates DankMaterialShell for the driftwm compositor: EWW widgets driven by an event-driven Rust daemon, with a fraction of the memory."))
+    (s-section :title "Credits")
+    (s-card
+      (s-about-link :label "DankMaterialShell" :sub "Avenge Media — the original design" :url "https://github.com/AvengeMedia/DankMaterialShell")
+      (s-about-link :label "driftwm" :sub "malbiruk — the compositor" :url "https://github.com/malbiruk/driftwm")
+      (s-about-link :label "EWW" :sub "elkowar — the widget toolkit" :url "https://github.com/elkowar/eww"))
+    (s-section :title "System")
+    (s-card
+      (s-row :label "Distribution" (label :class "s-sub" :text {info.distro}))
+      (s-row :label "Kernel" (label :class "s-sub" :text {info.kernel ?: ""}))
+      (s-row :label "Compositor" (label :class "s-sub" :text "driftwm"))
+      (s-row :label "Uptime" (label :class "s-sub" :text {info.uptime})))))
+
+(defwidget s-about-link [label sub url]
+  (eventbox :cursor "pointer" :onclick "dmr exec xdg-open ${url}"
+    (s-row :label label :sub sub :icon "link"
+      (icon :name "open_in_new" :size 20 :class "c-variant"))))

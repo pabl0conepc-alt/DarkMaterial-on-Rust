@@ -19,6 +19,8 @@ A arquitetura é a mesma do meu projeto [Sheels](https://github.com/pabl0conepc-
 | ![](docs/screenshots/dash-wallpaper.jpg) | ![](docs/screenshots/notif.jpg) |
 | **Material You do wallpaper (`dynamic`)** | **Dash → Mídia (MPRIS)** |
 | ![](docs/screenshots/dynamic-dash.jpg) | ![](docs/screenshots/dash-media.jpg) |
+| **Configurações** | **Configurações → Bar widgets** |
+| ![](docs/screenshots/settings-personalization.jpg) | ![](docs/screenshots/settings-barwidgets.jpg) |
 | **Tela de bloqueio (hyprlock)** | **Central com tema dinâmico** |
 | ![](docs/screenshots/lock.jpg) | ![](docs/screenshots/dynamic-cc.jpg) |
 
@@ -35,6 +37,10 @@ Prints do DMS v2.1.2 (esquerda) e do DarkMaterial (direita), mesma resolução, 
 | Energia | ![](docs/compare/power.jpg) |
 | OSD | ![](docs/compare/osd.jpg) |
 | Bloqueio | ![](docs/compare/lock.jpg) |
+| Configurações | ![](docs/compare/settings-personalization.jpg) |
+| Temas | ![](docs/compare/settings-theme.jpg) |
+| Widgets da barra | ![](docs/compare/settings-barwidgets.jpg) |
+| Atalhos | ![](docs/compare/settings-keybinds.jpg) |
 
 As medidas da interface (barra flutuante de 38 px a 4 px das bordas, pílulas de 30 px, cantos de 12 px, painéis em `surface`, cards em `surfaceContainer`, linhas de 56 px no Spotlight, central de 598 px, dash de 832 px) foram tiradas pixel a pixel desses prints.
 
@@ -46,12 +52,13 @@ Medido no mesmo ambiente para os dois: sway headless → driftwm aninhado → sh
 
 | Situação | DMS original (quickshell + dms) | DarkMaterial (dmr + EWW + listeners) |
 |---|---|---|
-| Ocioso (só a barra) | 0,17 % · **310 MiB** | **0,03 %** · **61 MiB** |
-| Central de Controle aberta | 0,20 % · 330 MiB | ≤ 0,03 % · 65 MiB |
-| DankDash aberta | 0,17 % · 359 MiB | 0,10 % · 67 MiB |
+| Ocioso (só a barra) | 0,17 % · **310 MiB** | **0,07 %** · **66 MiB** |
+| Central de Controle aberta | 0,20 % · 330 MiB | 0,03 % · 71 MiB |
+| DankDash aberta | 0,17 % · 359 MiB | 0,07 % · 73 MiB |
 | Spotlight aberto | — | 0,20 % · 75 MiB |
+| Configurações abertas | — | 0,03 % · 82 MiB |
 
-(Resolução da medida: 1 tick de CPU em 30 s = 0,03 %. O PSS do DarkMaterial é ~51 MiB do EWW com os três painéis persistentes já construídos, ~4 MiB do daemon e ~0,5 MiB por listener.)
+(Resolução da medida: 1 tick de CPU em 30 s = 0,03 %. O PSS do DarkMaterial é ~51 MiB do EWW com os painéis persistentes já construídos, ~4 MiB do daemon e ~0,5 MiB por listener.)
 
 Por que gasta pouco:
 
@@ -63,6 +70,7 @@ Por que gasta pouco:
 - **Barra gerada sob medida.** O daemon escreve no `_gen.yuck` só os widgets listados em `bar.left/center/right`; nada de ramos escondidos ocupando memória.
 - **EWW com o patch do Sheels** (`nix/eww-dmr.patch`): memoiza o valor de cada propriedade e cada lista de `for` (o EWW original chama todos os setters GTK a cada atualização, mesmo com valor igual) — ~8× menos CPU por atualização; corrige `:visible`; adiciona `:onkeypress`/`:autofocus` no `input`; trunca texto colado em uma linha.
 - **Listeners minúsculos:** cada tópico é um `dmr listen <tópico>` só com std (~0,5 MiB); só os tópicos usados por janelas abertas ficam ativos.
+- **Configurações só existem quando abertas**, e o patch do EWW chama `malloc_trim` ao fechar uma janela (a glibc não devolvia ~20 MiB do GTK).
 - **Sem processos órfãos:** os comandos ao EWW usam `--no-daemonize` (nunca sobem um EWW paralelo), cada `dmr listen` sai sozinho quando o EWW some, e se o EWW cair o daemon o reinicia e reconstrói a barra e os painéis.
 - **fontconfig próprio para o EWW**, isolado do GTK CSS do usuário, sem ponte de acessibilidade e sem GL.
 
@@ -171,7 +179,7 @@ Instala `~/.config/driftwm/config.toml` com os atalhos do DMS e o `dmr daemon` n
 | `Super+V` | Histórico da área de transferência |
 | `Super+Alt+L` | Bloquear |
 | `Super+Alt+N` / `Super+Alt+I` | Modo noturno / manter acordado |
-| `Super+,` | Configurações (`settings.json` no editor) |
+| `Super+,` | Configurações |
 | `Super+T`, `Super+Return` | Terminal |
 | `Super+1…5` / `Super+Alt+1…5` / `Super+Shift+1…5` | Ir para o workspace (bookmark) / mover janela / salvar posição |
 | `Print` / `Ctrl+Print` | Captura de região / tela inteira |
@@ -180,9 +188,32 @@ Instala `~/.config/driftwm/config.toml` com os atalhos do DMS e o `dmr daemon` n
 
 No Spotlight: `>` lista ações (`>wallpaper`, `>scheme`, `>variant`, `>light`, `>dark`, `>lock`, calculadora com `>calc 2+2`), `Tab` completa, `↑/↓` navega, `Enter` abre e `Esc` fecha.
 
-## Configuração
+## Configurações (personalização)
 
-Tudo em `~/.config/dmr/settings.json`, só com as chaves que você quer mudar; `dmr config set <chave> <valor>` muda ao vivo:
+A janela **Configurações** recria a do DMS: lista de categorias com busca à esquerda, página à direita, interruptores Material 3, menus que abrem sob a linha, botões segmentados e sliders com −/+. Abre por `Super+,`, pela engrenagem ou pelo lápis da Central de Controle, pela ação "Settings" do Spotlight, ou por `dmr settings [página]`. Tudo vale na hora, sem reiniciar nada.
+
+| Página | O que dá para mudar |
+|---|---|
+| **Wallpaper & colors** | Claro/escuro, *smart scheme*, wallpaper (miniaturas, aleatório, pasta) |
+| ↳ **Theme & colors** | **Generic**: os 10 temas prontos do DMS (Blue, Purple, Green, Orange, Red, Cyan, Pink, Amber, Coral, Monochrome) · **Auto**: Material You do wallpaper + as 9 variantes · **Browse**: todos os esquemas (catppuccin, gruvbox, nord, rosepine…) |
+| **Interface style** | Transparência + opacidade, raio dos cantos |
+| **Fonts & motion** | Família da fonte (as instaladas), escala do texto, duração das animações |
+| **Bar** | Posição (topo/baixo), flutuante, rolagem nos workspaces e no volume, workspaces exibidos, mostrar vazios, intervalo de CPU/RAM |
+| **Bar widgets** | Os três setores da barra: reordenar, ocultar (interruptor), remover, **adicionar widget**, restaurar padrão |
+| **Launcher** | Quantidade de resultados, busca fuzzy, teclas vim, ações de energia |
+| **Dashboard** | Abas Mídia, Wallpapers e Clima |
+| **Notifications** | Não perturbe, sobre tela cheia, agrupamento, tempo dos popups, prévia |
+| **On-screen displays** | OSD ligado, OSD de brilho e de microfone, tempo na tela |
+| **Sound & media** | Volume, saída/entrada, passo do volume, acima de 100%, player preferido |
+| **Displays** | Modo noturno + temperatura, brilho |
+| **Power & battery** | Perfil de energia, estado da bateria, manter acordado |
+| **Network** | Wi-Fi (lista, conectar, senha) e Bluetooth (dispositivos) |
+| **Keyboard shortcuts** | Os atalhos lidos do `config.toml` do driftwm, com busca |
+| **Default apps** | Terminal, gerenciador de arquivos, mixer de áudio |
+| **Time & weather** | Formato do relógio, local e unidades do clima |
+| **About** | Versão, créditos, sistema |
+
+Por baixo, tudo fica em `~/.config/dmr/settings.json` (só as chaves alteradas). Também dá para editar à mão (botão `{ }` da janela, ou `dmr settings edit`) ou pelo terminal: `dmr config set <chave> <valor>`, `dmr config get <chave>`.
 
 ```json
 {
@@ -190,9 +221,12 @@ Tudo em `~/.config/dmr/settings.json`, só com as chaves que você quer mudar; `
     "left":   ["launcherButton", "workspaceSwitcher", "focusedWindow"],
     "center": ["music", "clock", "weather"],
     "right":  ["systemTray", "clipboard", "cpuUsage", "memUsage", "notificationButton", "battery", "controlCenterButton"],
+    "hidden": [],
+    "position": "top",
     "floating": true,
     "sysInterval": 3000
   },
+  "appearance": { "fontFamily": "Google Sans Flex", "fontScale": 1.0, "radius": 1.0, "animScale": 1.0, "transparency": false },
   "services": { "weatherLocation": "São Paulo", "clockFormat": "24h", "smartScheme": true },
   "notifs": { "defaultExpireTimeout": 5000 },
   "osd": { "hideDelay": 2000 },
@@ -200,20 +234,19 @@ Tudo em `~/.config/dmr/settings.json`, só com as chaves que você quer mudar; `
 }
 ```
 
-Widgets da barra disponíveis: `launcherButton`, `workspaceSwitcher`, `focusedWindow`, `music`, `clock`, `weather`, `systemTray`, `clipboard`, `cpuUsage`, `memUsage`, `notificationButton`, `battery`, `controlCenterButton`, `idleInhibitor`, `powerMenuButton`.
+Widgets da barra: `launcherButton`, `workspaceSwitcher`, `focusedWindow`, `music`, `clock`, `weather`, `systemTray`, `clipboard`, `cpuUsage`, `memUsage`, `notificationButton`, `battery`, `controlCenterButton`, `idleInhibitor`, `powerMenuButton`.
 
-Tema: `dmr scheme set dynamic` (Material You do wallpaper, padrão), `dmr scheme set dms purple` (o roxo padrão do DMS), ou qualquer esquema em `schemes/` (catppuccin, gruvbox, nord, rosepine…). `dmr wallpaper set <arquivo>` troca o wallpaper (o driftwm desenha o fundo) e regenera as cores.
+Tema pelo terminal: `dmr scheme set dynamic`, `dmr scheme set stock blue` (temas prontos do DMS), `dmr scheme set catppuccin mocha`; `dmr scheme mode light|dark`; `dmr wallpaper set <arquivo>`.
 
 ---
 
 ## Diferenças em relação ao DMS
 
 - **Workspaces são bookmarks do driftwm** (canvas infinito). A pílula fica "ocupada" quando há janela perto daquele ponto.
-- **Settings**: o DMS tem uma janela de configurações gigante; aqui o botão abre o `settings.json` no editor e `dmr config set` muda tudo ao vivo.
+- **Configurações**: as páginas acima cobrem o que o DarkMaterial tem. Ficam de fora as do DMS sem equivalente aqui (dock, desktop widgets, plugins, usuários, impressoras, atualizações, greeter, regras de janela, monitores). Os widgets da barra se reordenam com setas, não arrastando.
 - **Bloqueio** pelo hyprlock com template no estilo do lock do DMS (relógio grande com os minutos na cor primária, avatar + campo de senha em pílula). Autenticação por PAM e digital via fprintd.
 - **Não implementados**: dock, notepad, gerenciador de processos, plugins, letras sincronizadas, visualizador de áudio, aba "Digital wellbeing", desktop widgets. O Spotlight não busca arquivos (só apps, ações, calculadora, esquemas e wallpapers).
 - **Animações**: os painéis deslizam/esmaecem com as curvas do Material 3, sem o "spring" e o blur do Quickshell.
-- O fundo escurecido dos modais não cobre a barra (o EWW não permite zona exclusiva −1).
 
 ## Desenvolvimento
 

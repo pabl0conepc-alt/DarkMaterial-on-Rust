@@ -7,9 +7,10 @@
 
 // ---------------------------------------------------------------- tokens
 $sp-xxs: 2px; $sp-xs: 4px; $sp-s: 8px; $sp-m: 12px; $sp-l: 16px; $sp-xl: 24px;
-$r-xs: 4px; $r-s: 8px; $r-m: 12px; $r-l: 16px; $r-xl: 24px; $full: 999px;
+// Corners scale with appearance.radius (Settings → Interface style).
+$r-xs: 4px * $radius-scale; $r-s: 8px * $radius-scale; $r-m: 12px * $radius-scale; $r-l: 16px * $radius-scale; $r-xl: 24px * $radius-scale; $full: 999px * $radius-scale;
 
-$font: "Google Sans Flex", "GoogleSansFlex", "Inter", sans-serif;
+$font: $font-family, "Google Sans Flex", "GoogleSansFlex", sans-serif;
 $font-icon: "Material Symbols Rounded";
 
 @function fs($px) { @return $px * $font-scale * 1px; }
@@ -73,6 +74,7 @@ scale.dank-slider {
 
 // ---------------------------------------------------------------- bar
 .bar-outer.floating .dbar { margin: 4px 4px 0 4px; }
+.bar-outer.floating.bottom .dbar { margin: 0 4px 4px 4px; }
 .dbar {
   background-color: $bg;
   min-height: 38px;
@@ -492,3 +494,204 @@ scale.media-progress trough { min-height: 6px; border-radius: $full; background-
 }
 .chip.active { background-color: mix($onSurfaceVariant, $surfaceContainerHighest, 40%); border-color: transparent; }
 .spot-hint { font-size: fs(12); color: $onSurfaceVariant; margin-left: 14px; }
+
+// ---------------------------------------------------------------- settings
+// DMS Settings window: 960 px, category list (312 px) + page pane.
+.sw {
+  background-color: $bg;
+  border-radius: $r-l;
+  padding: 0 12px 12px 12px;
+}
+.sw-head { min-height: 64px; }
+.sw-title { font-size: fs(18); font-weight: 500; }
+.sw-close {
+  min-width: 32px; min-height: 32px; border-radius: $full;
+  @include state(mix($onSurface, $surfaceContainerHighest, 85%), $surface);
+  .icon { color: $surface; }
+}
+.sw-headbtn { min-width: 32px; min-height: 32px; border-radius: $full; @include state(transparent); .icon { color: $onSurfaceVariant; } }
+.sw-nav { min-width: 312px; margin-right: 12px; }
+.sw-search {
+  min-height: 44px;
+  padding: 0 6px 0 14px;
+  margin-bottom: 12px;
+  border-radius: $full;
+  background-color: $surfaceContainerHigh;
+  border: 2px solid mix($primary, $surfaceContainerHigh, 70%);
+}
+.sw-search-icon { color: $onSurfaceVariant; margin-right: 10px; }
+.sw-search-input { font-size: fs(14); caret-color: $primary; }
+.sw-search-ph { font-size: fs(14); color: $onSurfaceVariant; }
+.sw-avatar {
+  min-width: 32px; min-height: 32px; border-radius: $full;
+  background-color: mix($onSurface, $surfaceContainerHighest, 80%);
+  label { color: $surface; font-weight: 600; font-size: fs(14); }
+}
+.sw-gap { min-height: 10px; }
+.sw-navitem {
+  min-height: 56px;
+  padding: 0 14px;
+  margin-bottom: 2px;
+  border-radius: $r-m;
+  @include state($card);
+}
+.sw-navitem.sel { background-color: $sel; }
+.sw-navicon {
+  min-width: 36px; min-height: 36px;
+  margin-right: 14px;
+  border-radius: $full;
+  .icon { color: $surface; }
+}
+// DMS category colours.
+.sw-navicon.g0, .sw-navicon.g1 { background-color: mix($primary, $onSurface, 70%); }
+.sw-navicon.g2 { background-color: #95caad; }
+.sw-navicon.g3 { background-color: #f4ae93; }
+.sw-navicon.g4 { background-color: #9ccbfb; }
+.sw-navicon.g5 { background-color: mix($onSurfaceVariant, $onSurface, 50%); }
+.sw-navtitle { font-size: fs(13.5); }
+.sw-navsub { font-size: fs(11.5); color: $onSurfaceVariant; margin-top: 1px; }
+
+.sw-content {
+  background-color: $card;
+  border-radius: $r-l;
+  padding: 8px 12px 0 12px;
+}
+.sw-pagehead { min-height: 64px; padding-left: 12px; }
+.sw-back { min-width: 36px; min-height: 36px; border-radius: $full; margin-right: 8px; @include state(transparent); }
+.sw-pagetitle { font-size: fs(30); }
+.sw-page { padding: 0 12px 24px 12px; }
+
+.s-section { color: $primary; font-size: fs(14.5); font-weight: 500; margin: 16px 0 10px 8px; }
+.s-card {
+  background-color: transparent;
+  margin-bottom: 4px;
+}
+.s-card > * { }
+.s-row, .s-wrow, .s-kbrow, .s-scheme {
+  min-height: 62px;
+  padding: 0 20px;
+  border-radius: $r-m;
+  background-color: $surfaceContainerHigh;
+  margin-bottom: 4px;
+}
+.s-row.dim label { color: $onSurfaceVariant; }
+.s-row-icon { margin-right: 18px; .icon { color: $onSurface; } }
+.s-label { font-size: fs(14.5); }
+.s-sub { font-size: fs(12); color: $onSurfaceVariant; margin-top: 2px; }
+.s-center { }
+.s-pad { padding: 12px 8px; }
+.s-card .s-pad { padding: 20px; margin-bottom: 4px; border-radius: $r-m; background-color: $surfaceContainerHigh; }
+
+.s-switch {
+  min-width: 52px; min-height: 32px;
+  padding: 0 6px;
+  border-radius: $full;
+  background-color: $surfaceContainerHighest;
+  border: 2px solid $outline;
+}
+.s-switch .s-knob { min-width: 16px; min-height: 16px; margin: 6px 2px; border-radius: $full; background-color: $outline; }
+.s-switch.on { background-color: $primary; border-color: $primary; padding: 0 2px; }
+.s-switch.on .s-knob { min-width: 24px; min-height: 24px; margin: 2px 0; background-color: $onPrimary; }
+.s-knob-icon { color: $primary; }
+
+.s-dd {
+  min-width: 200px; min-height: 40px;
+  padding: 0 6px 0 14px;
+  border-radius: $r-s;
+  @include state($surfaceContainerHighest);
+}
+.s-dd.open { background-color: mix($primary, $surfaceContainerHighest, 15%); }
+.s-dd-val { font-size: fs(14); }
+.s-dd-list { padding: 4px 20px 12px 20px; }
+.s-opt {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: $full;
+  @include state(mix($onSurfaceVariant, $surfaceContainerHighest, 40%));
+  label { font-size: fs(13.5); }
+}
+.s-opt.active { background-color: $primary; label, .icon { color: $onPrimary; } }
+.s-opt.active:hover { background-color: mix($onPrimary, $primary, 8%); }
+
+.s-slider-row { padding-top: 12px; padding-bottom: 10px; }
+.s-slider-line { margin-top: 8px; }
+.s-scale { margin: 0 8px; }
+.s-step { min-width: 32px; min-height: 32px; border-radius: $full; @include state(transparent); }
+
+.s-text { min-width: 260px; min-height: 40px; padding: 0 12px; border-radius: $r-s; background-color: $surfaceContainerHighest; }
+.s-text-input { font-size: fs(14); caret-color: $primary; }
+
+.s-btn {
+  min-height: 34px; padding: 0 14px;
+  border-radius: $full;
+  @include state(mix($onSurfaceVariant, $surfaceContainerHighest, 40%));
+  label { font-size: fs(13.5); }
+}
+.s-btn.primary { background-color: $primary; label, .icon { color: $onPrimary; } }
+.s-btn.primary:hover { background-color: mix($onPrimary, $primary, 8%); }
+
+.s-appearance { padding: 16px; border-radius: $r-m; background-color: $surfaceContainerHigh; }
+.s-appearance .s-row { background-color: $surfaceContainerHighest; }
+.s-wallprev { min-width: 264px; min-height: 150px; border-radius: $r-m; background-size: cover; background-position: center; background-color: $surfaceContainerHighest; }
+.s-wallchip { margin: 8px; padding: 2px 8px; border-radius: $r-s; background-color: rgba($surface, 0.85); label { font-size: fs(12.5); } }
+.s-seg2 { }
+.s-seg {
+  min-height: 40px; border-radius: $full;
+  @include state(mix($onSurfaceVariant, $surfaceContainerHighest, 40%));
+  label { font-size: fs(14.5); }
+}
+.s-seg.active { background-color: $primary; label, .icon { color: $onPrimary; } }
+.s-walls { padding: 12px; border-radius: $r-m; background-color: $surfaceContainerHigh; margin-bottom: 4px; }
+.s-wall { min-width: 98px; min-height: 64px; border-radius: $r-s; background-size: cover; background-position: center; border: 3px solid transparent; }
+.s-wall.current { border-color: $primary; }
+.s-wall-actions { padding: 8px 4px; }
+
+.s-theme-head { padding: 14px; border-radius: $r-m; background-color: $surfaceContainerHigh; margin-bottom: 4px; }
+.s-theme-head label { }
+.s-seg4 { padding: 12px 0; }
+.s-stock { padding: 4px 4px 12px 4px; }
+.s-stocktile { min-height: 86px; border-radius: $r-m; background-color: $surfaceContainerHigh; border: 2px solid transparent; padding: 12px 4px 8px 4px; }
+.s-stocktile.current { border-color: $primary; }
+.s-stockdot { min-width: 34px; min-height: 34px; border-radius: $full; }
+.s-stockname { font-size: fs(12.5); margin-top: 8px; }
+.s-variants { padding: 0 4px 12px 4px; }
+.s-scheme.current { background-color: $sel; }
+.s-swatches { min-width: 64px; min-height: 28px; margin-right: 16px; border-radius: $r-s; }
+.s-swatch { min-width: 16px; min-height: 28px; }
+
+.s-positions { padding: 16px; border-radius: $r-m; background-color: $surfaceContainerHigh; }
+.s-postile { padding: 12px; border-radius: $r-m; border: 2px solid transparent; }
+.s-postile.current { border-color: $primary; background-color: mix($primary, $surfaceContainerHigh, 8%); }
+.s-posscreen { min-width: 72px; min-height: 42px; border-radius: $r-xs; padding: 4px; background-color: $surfaceContainerHighest; }
+.s-posbar { min-height: 8px; border-radius: $r-xs; background-color: $primary; }
+
+.s-arrows { margin-right: 10px; }
+.s-arrow { min-width: 24px; min-height: 20px; border-radius: $r-xs; @include state(transparent); .icon { color: $onSurfaceVariant; } }
+.s-wicon { min-width: 30px; margin-right: 14px; }
+.s-x { min-width: 32px; min-height: 32px; margin-left: 12px; border-radius: $full; @include state(transparent); .icon { color: $error; } }
+.s-addwrap { margin: 6px 0 4px 0; }
+.s-add {
+  min-height: 40px; padding: 0 18px; border-radius: $full;
+  @include state(mix($onSurfaceVariant, $surfaceContainerHighest, 40%));
+}
+.s-pick { min-height: 56px; }
+
+.s-kbsearch { min-height: 48px; padding: 0 16px; margin: 4px 0 8px 0; border-radius: $full; background-color: $surfaceContainerHigh; border: 1px solid $outlineVariant; }
+.s-kbsearch .icon { margin-right: 12px; }
+.s-kbrow { min-height: 50px; }
+.s-kbd {
+  min-width: 26px; padding: 2px 8px;
+  border-radius: $r-xs;
+  background-color: $surfaceContainerHighest;
+  border: 1px solid $outlineVariant;
+  label { font-size: fs(12); font-weight: 500; }
+}
+
+.s-fontprev { padding: 16px 20px; border-radius: $r-m; background-color: $surfaceContainerHigh; margin-bottom: 4px; }
+.s-fp1 { font-size: fs(28); }
+.s-fp2 { font-size: fs(14); margin-top: 6px; }
+
+.s-about-head { padding: 20px 0 16px 0; }
+.s-about-title { font-size: fs(48); font-weight: 800; }
+.s-chip { padding: 4px 14px; margin: 8px 0; border-radius: $full; background-color: $primary; label { color: $onPrimary; font-weight: 600; } }
+.s-about-btn { margin-top: 6px; }

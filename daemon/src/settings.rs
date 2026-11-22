@@ -145,6 +145,8 @@ pub fn publish() {
     if let Ok(v) = serde_json::to_value(&*c) {
         app().hub.publish("cfg", &v);
     }
+    // The Settings window shows lists derived from the config (bar widgets).
+    app().prefs.publish();
 }
 
 /// Refresh whatever depends on the changed section.
@@ -155,8 +157,13 @@ async fn apply(key: &str) {
         "appearance" | "border" | "background" | "driftwm" | "paths" => a.theme.apply_current().await,
         "services" if key == "services.smartScheme" => a.theme.apply_current().await,
         "services" if key == "services.clockFormat" => crate::clock::publish_clock(),
+        // A running night light picks up the new temperature.
+        "general" if key == "general.nightTemp" && a.misc.lock().unwrap().night => {
+            crate::server::toggle_night();
+            crate::server::toggle_night();
+        }
         "services" if key.starts_with("services.weather") => a.info.refresh_weather(),
-        "bar" if ["bar.left", "bar.center", "bar.right"].iter().any(|k| key.starts_with(k)) => {
+        "bar" if ["bar.left", "bar.center", "bar.right", "bar.hidden"].iter().any(|k| key.starts_with(k)) => {
             // The bar layout is generated into _gen.yuck: rebuild it.
             a.eww.reload().await;
             a.ui.open_static().await;
@@ -175,7 +182,7 @@ async fn apply(key: &str) {
         _ => {}
     }
     // The bar width depends on the border thickness / persistence: reopen static windows.
-    if top == "border" || key == "bar.persistent" || key == "bar.floating" {
+    if top == "border" || key == "bar.persistent" || key == "bar.floating" || key == "bar.position" {
         a.ui.open_static().await;
     }
 }
@@ -187,6 +194,13 @@ pub async fn command(sub: &str, key: &str, rest: &[&str]) -> Result<String> {
         "set" => {
             let raw = rest.join(" ");
             let v = coerce(key, &raw)?;
+            write(key, v).await?;
+            Ok(String::new())
+        }
+        // config setpct <key> <percent>: sliders that show 0–200 %.
+        "setpct" => {
+            let pct: f64 = rest.first().and_then(|s| s.parse().ok()).ok_or_else(|| anyhow::anyhow!("config setpct <key> <percent>"))?;
+            let v = coerce(key, &((pct / 100.0 * 100.0).round() / 100.0).to_string())?;
             write(key, v).await?;
             Ok(String::new())
         }

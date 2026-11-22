@@ -21,6 +21,7 @@ mod launcher;
 mod media;
 mod network;
 mod notifd;
+mod prefs;
 mod server;
 mod settings;
 mod setup;

@@ -4,17 +4,17 @@
 
 (deflisten walls :initial '{"items":[],"current":""}' "exec dmr listen walls")
 
-(defwindow dash []
-  :geometry (geometry :anchor "top center" :y "4px")
+(defwindow dash [bottom]
+  :geometry (geometry :anchor "${bottom ? 'bottom' : 'top'} center" :y "4px")
   :stacking "overlay" :exclusive false :focusable "none" :namespace "dmr-dash"
-  (revealer :transition "slidedown" :reveal {ui.dash} :duration "250ms"
+  (revealer :transition {bottom ? "slideup" : "slidedown"} :reveal {ui.dash} :duration "250ms"
     (box :class "popout dashp" :orientation "v" :space-evenly false
       (eventbox :onscroll "dmr dash-tab-scroll {}"
         (box :class "dash-tabs" :space-evenly true
           (dash-tab :i 0 :icon "dashboard" :label "Overview")
-          (dash-tab :i 1 :icon "music_note" :label "Media")
-          (dash-tab :i 2 :icon "wallpaper" :label "Wallpapers")
-          (dash-tab :i 3 :icon "wb_sunny" :label "Weather")))
+          (box :visible {cfg.dashboard.showMedia} (dash-tab :i 1 :icon "music_note" :label "Media"))
+          (box :visible {cfg.dashboard.showWallpapers} (dash-tab :i 2 :icon "wallpaper" :label "Wallpapers"))
+          (box :visible {cfg.dashboard.showWeather} (dash-tab :i 3 :icon "wb_sunny" :label "Weather"))))
       (stack :selected {ui.dashTab} :transition "crossfade" :same-size false
         (dash-overview)
         (dash-media)

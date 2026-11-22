@@ -3,10 +3,10 @@
 ;   center: music · clock · weather
 ;   right:  tray · clipboard · cpu · ram · notifications · battery · control center
 
-(defwindow bar [monitor floating]
-  :geometry (geometry :anchor "top center" :width "100%" :height "${floating ? 42 : 38}px")
+(defwindow bar [monitor floating bottom]
+  :geometry (geometry :anchor "${bottom ? 'bottom' : 'top'} center" :width "100%" :height "${floating ? 42 : 38}px")
   :stacking "fg" :exclusive true :focusable "none" :namespace "dmr-bar"
-  (box :class "bar-outer ${floating ? 'floating' : 'flush'}"
+  (box :class "bar-outer ${floating ? 'floating' : 'flush'} ${bottom ? 'bottom' : 'top'}"
     (centerbox :class "dbar"
       (box :class "bar-section" :halign "start" :space-evenly false :spacing 4 (bar-left))
       (box :class "bar-section" :halign "center" :space-evenly false :spacing 4 (bar-center))
@@ -32,7 +32,7 @@
 
 ; Workspaces = driftwm bookmarks. Active: wide primary pill; occupied: brighter.
 (defwidget bar-workspaces []
-  (pill :class "ws-pill" :onscroll "dmr ws-scroll {}"
+  (pill :class "ws-pill" :onscroll "${cfg.bar.scrollActions.workspaces ? 'dmr ws-scroll {}' : ''}"
     (box :class "ws-row" :space-evenly false :spacing 6 :valign "center"
       (box :visible {arraylength(wm.workspaces) == 0}
         (box :class "ws active" :valign "center"))
@@ -108,7 +108,7 @@
 (defwidget bar-cc []
   (pill :class "cc-btn ${ui.controlcenter ? 'active' : ''} ${status.net.connected || status.bt.connected > 0 ? '' : 'square'}"
         :onclick "dmr toggle controlcenter"
-        :onscroll "dmr volume {}"
+        :onscroll "${cfg.bar.scrollActions.volume ? 'dmr volume {}' : ''}"
     (box :visible {status.net.connected} (icon :name {status.net.icon} :size 16 :class "bar-icon"))
     (box :visible {status.bt.connected > 0} (icon :name "bluetooth" :size 16 :class "bar-icon"))
     (icon :name {status.audio.icon} :size 16 :class "bar-icon")))

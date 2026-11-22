@@ -190,3 +190,31 @@ diff -ruN a/crates/eww/src/widgets/widget_definitions.rs b/crates/eww/src/widget
              }
          }
      });
+--- a/crates/eww/src/display_backend.rs
++++ b/crates/eww/src/display_backend.rs
+@@ -122,6 +122,9 @@
+             }
+             if window_init.backend_options.wayland.exclusive {
+                 window.auto_exclusive_zone_enable();
++            } else if window_init.backend_options.wayland.namespace.as_deref().is_some_and(|n| n.ends_with("-scrim")) {
++                // (dmr) full-screen scrims also cover other exclusive zones (the bar)
++                window.set_exclusive_zone(-1);
+             }
+             Some(window)
+         }
+--- a/crates/eww/src/app.rs
++++ b/crates/eww/src/app.rs
+@@ -398,6 +398,13 @@
+ 
+         self.scope_graph.borrow_mut().remove_scope(scope_index);
+ 
++        // (dmr) hand the memory of the destroyed widget tree back to the
++        // system once GTK has finalized it (glibc keeps freed heap otherwise).
++        #[cfg(target_env = "gnu")]
++        gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(500), || unsafe {
++            libc::malloc_trim(0);
++        });
++
+         let unused_variables = self.scope_graph.borrow().currently_unused_globals();
+         for unused_var in unused_variables {
+             log::debug!("stopping script-var {}", &unused_var);

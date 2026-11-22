@@ -183,9 +183,18 @@ pub async fn dispatch(a: Vec<String>) -> Result<String> {
             let rest: Vec<&str> = a.iter().skip(3).map(String::as_str).collect();
             crate::settings::command(sub, arg(&a, 2), &rest).await
         }
+        "settings" if sub != "edit" => {
+            // DMS `settings toggle|open [page]`.
+            if !arg(&a, 2).is_empty() || (!sub.is_empty() && sub != "toggle" && sub != "open") {
+                let page = if arg(&a, 2).is_empty() { sub } else { arg(&a, 2) };
+                app.prefs.command("page", &[page.to_string()]).await?;
+                return app.ui.open("settings").await;
+            }
+            if sub == "open" { app.ui.open("settings").await } else { app.ui.toggle("settings").await }
+        }
+        "prefs" => app.prefs.command(sub, &a[2.min(a.len())..]).await,
         "settings" => {
-            // Open the settings file in the user's editor (DMS opens its
-            // Settings window here; `dmr config set` changes keys live).
+            // `dmr settings edit`: the raw settings.json in $EDITOR.
             app.ui.close_all().await;
             let path = crate::util::config_dir().join("settings.json");
             if !path.exists() {
@@ -332,7 +341,7 @@ pub async fn session(what: &str) -> Result<String> {
 
 /// Night mode (DMS "night light"): a gamma tint through wlsunset, which
 /// works on any wlr-gamma-control compositor.
-fn toggle_night() {
+pub fn toggle_night() {
     let app = app();
     {
         let mut m = app.misc.lock().unwrap();

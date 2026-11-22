@@ -16,6 +16,6 @@
 ; it. Modals (launcher, notification center, power menu) also dim the screen.
 (defwindow catcher []
   :geometry (geometry :anchor "top left" :width "100%" :height "100%")
-  :stacking "fg" :exclusive false :focusable "none" :namespace "dmr-catcher"
+  :stacking "fg" :exclusive false :focusable "none" :namespace "dmr-scrim"
   (eventbox :onclick "dmr close" :onrightclick "dmr close"
     (box :class "catch ${ui.scrim ? 'scrim' : ''}" :hexpand true :vexpand true)))

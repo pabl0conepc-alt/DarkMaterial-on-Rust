@@ -67,6 +67,10 @@ section!(Bar {
     sys_interval: u64 = 3000,
     /// Floating bar (4 px gap, rounded) like DMS; false = flush to the edges.
     floating: bool = true,
+    /// "top" | "bottom"
+    position: String = "top".into(),
+    /// Widgets switched off in Settings → Bar widgets (kept in place, hidden).
+    hidden: Vec<String> = vec![],
     persistent: bool = true,
     show_on_hover: bool = true,
     scroll_actions: ScrollActions = ScrollActions::default(),
@@ -174,6 +178,7 @@ section!(Dashboard {
     show_dashboard: bool = true,
     show_media: bool = true,
     show_performance: bool = true,
+    show_wallpapers: bool = true,
     show_weather: bool = true,
     performance: Performance = Performance::default(),
     /// Milliseconds.
@@ -308,6 +313,10 @@ pub struct Appearance {
     pub transparency_layers: f64,
     pub font_scale: f64,
     pub anim_scale: f64,
+    /// UI font family (DMS "Fonts & motion → Family").
+    pub font_family: String,
+    /// Corner radius multiplier (DMS "Interface style → Corners").
+    pub radius: f64,
 }
 impl Default for Appearance {
     fn default() -> Self {
@@ -317,6 +326,8 @@ impl Default for Appearance {
             transparency_layers: 0.4,
             font_scale: 1.0,
             anim_scale: 1.0,
+            font_family: "Google Sans Flex".into(),
+            radius: 1.0,
         }
     }
 }

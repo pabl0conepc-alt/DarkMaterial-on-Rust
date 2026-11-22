@@ -69,6 +69,51 @@ fn hex(rgb: Rgb) -> String {
     format!("{:02x}{:02x}{:02x}", rgb.red, rgb.green, rgb.blue)
 }
 
+/// DankMaterialShell's stock themes (Blue, Purple, Green…), extracted from
+/// its StockThemes.js. DMS only defines the main roles; the remaining
+/// Material 3 roles come from a tonal-spot scheme seeded with the primary.
+const STOCK: &str = include_str!("../../schemes/dms/stock.json");
+
+/// In DMS's order.
+pub fn stock_names() -> Vec<String> {
+    ["blue", "purple", "green", "orange", "red", "cyan", "pink", "amber", "coral", "monochrome"].iter().map(|s| s.to_string()).collect()
+}
+
+fn stock_scheme(name: &str, light: bool) -> BTreeMap<String, String> {
+    let all: Value = serde_json::from_str(STOCK).unwrap_or_default();
+    let t = &all[if light { "LIGHT" } else { "DARK" }][name];
+    let get = |k: &str| t[k].as_str().map(|s| s.trim_start_matches('#').to_lowercase());
+    let seed = get("primary").and_then(|h| parse_hex(&h)).unwrap_or(Rgb::from_u32(0x6750a4));
+    let variant = if name == "monochrome" { "monochrome" } else { "tonalspot" };
+    let mut c = gen_scheme(seed, variant, light, "default");
+    // DMS role → Material 3 role(s).
+    let map: &[(&str, &[&str])] = &[
+        ("primary", &["primary", "surfaceTint"]),
+        ("primaryText", &["onPrimary"]),
+        ("primaryContainer", &["primaryContainer"]),
+        ("secondary", &["secondary"]),
+        ("background", &["background", "surface", "surfaceDim"]),
+        ("backgroundText", &["onBackground", "onSurface"]),
+        ("surfaceVariant", &["surfaceVariant", "outlineVariant"]),
+        ("surfaceVariantText", &["onSurfaceVariant"]),
+        ("outline", &["outline"]),
+        ("surfaceContainerLowest", &["surfaceContainerLowest"]),
+        ("surfaceContainerLow", &["surfaceContainerLow"]),
+        ("surfaceContainer", &["surfaceContainer"]),
+        ("surfaceContainerHigh", &["surfaceContainerHigh"]),
+        ("surfaceContainerHighest", &["surfaceContainerHighest"]),
+        ("error", &["error"]),
+    ];
+    for (k, roles) in map {
+        if let Some(v) = get(k) {
+            for r in *roles {
+                c.insert(r.to_string(), v.clone());
+            }
+        }
+    }
+    c
+}
+
 fn parse_hex(s: &str) -> Option<Rgb> {
     let s = s.trim().trim_start_matches('#');
     if s.len() < 6 {
@@ -519,6 +564,8 @@ impl Theme {
                 st2.mode = m;
             }
             st2.colours = gen_scheme(src, &st2.variant, st2.mode == "light", &st2.flavour);
+        } else if st.name == "stock" {
+            st2.colours = stock_scheme(&st.flavour, st.mode == "light");
         } else {
             match scheme_file(&st.name, &st.flavour, &st.mode) {
                 Some(p) => {
@@ -560,6 +607,9 @@ impl Theme {
             if cfg.appearance.transparency { cfg.appearance.transparency_layers } else { 1.0 }
         ));
         scss.push_str(&format!("$font-scale: {};\n$anim-scale: {};\n", cfg.appearance.font_scale, cfg.appearance.anim_scale));
+        // Font family: only characters a font name can have (no CSS injection).
+        let fam: String = cfg.appearance.font_family.chars().filter(|c| c.is_alphanumeric() || " -_".contains(*c)).collect();
+        scss.push_str(&format!("$font-family: \"{}\";\n$radius-scale: {};\n", if fam.trim().is_empty() { "Google Sans Flex" } else { fam.trim() }, cfg.appearance.radius.clamp(0.0, 3.0)));
         let eww_dir = app().eww.dir.clone();
         let _ = std::fs::create_dir_all(&eww_dir);
         let _ = write_if_changed(&eww_dir.join("_theme.scss"), &scss);
@@ -601,6 +651,7 @@ impl Theme {
         if cfg.driftwm.manage_config {
             sync_driftwm(&st, &expand(&cfg.driftwm.config_path)).await;
         }
+        app().prefs.publish();
     }
 
     pub async fn set_wallpaper(&self, path: &str) -> Result<()> {
@@ -662,7 +713,11 @@ impl Theme {
                     let mut st = self.st.lock().unwrap();
                     st.name = name.to_string();
                     st.flavour = if arg(2).is_empty() { "default".into() } else { arg(2).to_string() };
-                    if name != "dynamic" && scheme_file(name, &st.flavour, "dark").is_none() {
+                    if name == "stock" {
+                        if stock_names().iter().all(|n| *n != st.flavour) {
+                            st.flavour = "purple".into();
+                        }
+                    } else if name != "dynamic" && scheme_file(name, &st.flavour, "dark").is_none() {
                         // Pick the first flavour available.
                         if let Some((_, f)) = list_schemes().into_iter().find(|(n, _)| n == name) {
                             st.flavour = f;

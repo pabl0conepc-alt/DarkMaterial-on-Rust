@@ -90,7 +90,7 @@ fn hostname() -> String {
     crate::util::read_trim("/proc/sys/kernel/hostname").unwrap_or_default()
 }
 
-fn username() -> String {
+pub fn username() -> String {
     std::env::var("USER").unwrap_or_else(|_| "user".into())
 }
 

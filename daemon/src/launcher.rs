@@ -208,6 +208,7 @@ const ACTIONS: &[Action] = &[
     Action { name: "Logout", icon: "exit_to_app", desc: "Log out of the current session", cmd: "session logout", dangerous: true },
     Action { name: "Lock", icon: "lock", desc: "Lock the current session", cmd: "lock", dangerous: false },
     Action { name: "Sleep", icon: "bedtime", desc: "Suspend then hibernate", cmd: "session suspend", dangerous: false },
+    Action { name: "Settings", icon: "settings", desc: "Wallpaper, theme, bar, notifications…", cmd: "settings open", dangerous: false },
     Action { name: "Control Center", icon: "tune", desc: "Quick settings: network, audio, toggles", cmd: "open controlcenter", dangerous: false },
     Action { name: "Notifications", icon: "notifications", desc: "Open the notification center", cmd: "open notifcenter", dangerous: false },
     Action { name: "Power menu", icon: "power_settings_new", desc: "Reboot, log out, power off, lock…", cmd: "open powermenu", dangerous: false },
