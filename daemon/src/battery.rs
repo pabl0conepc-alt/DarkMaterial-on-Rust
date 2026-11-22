@@ -31,11 +31,7 @@ struct Inner {
     warned: Vec<u8>,
     profile: String,
     profiles: Vec<String>,
-    caps: bool,
-    num: bool,
-    leds: Vec<(PathBuf, bool)>, // path, is_caps
     read_once: bool,
-    leds_once: bool,
 }
 
 #[derive(Default)]
@@ -78,14 +74,7 @@ impl Battery {
             "health": s.health.map(|h| h.round()),
             "profile": i.profile,
             "profiles": i.profiles,
-            "caps": i.caps,
-            "num": i.num,
         })
-    }
-
-    pub fn lock_keys(&self) -> (bool, bool) {
-        let i = self.inner.lock().unwrap();
-        (i.caps, i.num)
     }
 
     fn scan(&self) {
@@ -101,17 +90,6 @@ impl Battery {
                     i.bats.push(p);
                 } else if ty == "Mains" || ty == "USB" {
                     i.acs.push(p);
-                }
-            }
-        }
-        i.leds.clear();
-        if let Ok(rd) = std::fs::read_dir("/sys/class/leds") {
-            for e in rd.flatten() {
-                let n = e.file_name().to_string_lossy().to_string();
-                if n.ends_with("::capslock") {
-                    i.leds.push((e.path().join("brightness"), true));
-                } else if n.ends_with("::numlock") {
-                    i.leds.push((e.path().join("brightness"), false));
                 }
             }
         }
@@ -190,33 +168,6 @@ impl Battery {
         changed
     }
 
-    fn read_leds(&self) -> bool {
-        let mut i = self.inner.lock().unwrap();
-        let (mut caps, mut num) = (false, false);
-        for (p, is_caps) in &i.leds {
-            let on = read_num::<u32>(p).unwrap_or(0) > 0;
-            if *is_caps {
-                caps |= on;
-            } else {
-                num |= on;
-            }
-        }
-        let changed = caps != i.caps || num != i.num;
-        if i.leds_once {
-            let t = &crate::app::cfg().utilities.toasts;
-            if caps != i.caps {
-                app().notifs.toast(t.caps_lock_changed, if caps { "Caps lock on" } else { "Caps lock off" }, "", "keyboard_capslock_badge");
-            }
-            if num != i.num {
-                app().notifs.toast(t.num_lock_changed, if num { "Num lock on" } else { "Num lock off" }, "", "looks_one");
-            }
-        }
-        i.leds_once = true;
-        i.caps = caps;
-        i.num = num;
-        changed
-    }
-
     fn check_warnings(&self) {
         let cfg = crate::app::cfg();
         let levels = cfg.general.battery_warn_levels.clone();
@@ -272,25 +223,22 @@ pub async fn run() {
     let b = &app().bat;
     b.scan();
     b.read();
-    b.read_leds();
     app().publish_status();
     b.refresh_profile().await;
     let mut tick: u64 = 0;
     loop {
-        // LEDs every second (two tiny reads), battery every 15 s.
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        tick += 1;
-        let mut changed = b.read_leds();
-        if tick.is_multiple_of(15) {
-            if tick.is_multiple_of(300) {
-                b.scan();
-            }
-            changed |= b.read();
-            b.check_warnings();
+        // Battery every 15 s (a few sysfs reads); with no battery (desktop)
+        // only a rescan every 5 minutes, for hot-plugged UPS/devices.
+        let has_bat = !b.inner.lock().unwrap().bats.is_empty();
+        tokio::time::sleep(Duration::from_secs(if has_bat { 15 } else { 300 })).await;
+        tick += if has_bat { 15 } else { 300 };
+        if tick.is_multiple_of(300) {
+            b.scan();
         }
-        if changed {
+        if b.read() {
             app().publish_status();
         }
+        b.check_warnings();
     }
 }
 

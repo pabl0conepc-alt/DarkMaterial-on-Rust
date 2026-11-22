@@ -31,7 +31,6 @@ pub struct Entry {
     pub exec: String,
     pub icon: String,
     pub terminal: bool,
-    pub categories: Vec<String>,
     pub wm_class: String,
 }
 
@@ -106,7 +105,6 @@ fn parse_desktop(path: &std::path::Path, id: String) -> Option<Entry> {
             "Exec" => e.exec = v.to_string(),
             "Icon" => e.icon = v.to_string(),
             "Terminal" => e.terminal = v == "true",
-            "Categories" => e.categories = v.split(';').filter(|c| !c.is_empty()).map(str::to_string).collect(),
             "StartupWMClass" => e.wm_class = v.to_lowercase(),
             "NoDisplay" | "Hidden" if v == "true" => hidden = true,
             "Type" => ty = v.to_string(),
@@ -299,6 +297,10 @@ impl Launcher {
 
     /// Desktop-entry name and icon for an app id (focused window in the bar).
     pub fn name_icon_for(&self, id: &str) -> Option<(String, String)> {
+        // An empty id would match every entry without StartupWMClass.
+        if id.is_empty() {
+            return None;
+        }
         let i = self.inner.lock().unwrap();
         let low = id.to_lowercase();
         i.apps
@@ -309,62 +311,16 @@ impl Launcher {
 
     /// Icon-theme name for a desktop id / app id (used by notifications).
     pub fn icon_for(&self, id: &str) -> Option<String> {
+        // An empty id would match every entry without StartupWMClass.
+        if id.is_empty() {
+            return None;
+        }
         let i = self.inner.lock().unwrap();
         let low = id.to_lowercase();
         i.apps
             .iter()
             .find(|a| a.id.to_lowercase() == low || a.wm_class == low || a.id.to_lowercase().ends_with(&format!(".{low}")))
             .map(|a| a.icon.clone())
-    }
-
-    /// Caelestia `Icons.getAppCategoryIcon`: Material symbol from categories.
-    pub fn category_icon(&self, app_id: &str) -> Option<&'static str> {
-        const MAP: &[(&str, &str)] = &[
-            ("WebBrowser", "web"),
-            ("Printing", "print"),
-            ("Security", "security"),
-            ("Network", "chat"),
-            ("Archiving", "archive"),
-            ("Compression", "archive"),
-            ("Development", "code"),
-            ("IDE", "code"),
-            ("TextEditor", "edit_note"),
-            ("Audio", "music_note"),
-            ("Music", "music_note"),
-            ("Player", "music_note"),
-            ("Recorder", "mic"),
-            ("Game", "sports_esports"),
-            ("FileTools", "files"),
-            ("FileManager", "files"),
-            ("Filesystem", "files"),
-            ("FileTransfer", "files"),
-            ("Settings", "settings"),
-            ("DesktopSettings", "settings"),
-            ("HardwareSettings", "settings"),
-            ("TerminalEmulator", "terminal"),
-            ("ConsoleOnly", "terminal"),
-            ("Utility", "build"),
-            ("Monitor", "monitor_heart"),
-            ("Midi", "graphic_eq"),
-            ("Mixer", "graphic_eq"),
-            ("AudioVideoEditing", "video_settings"),
-            ("AudioVideo", "music_video"),
-            ("Video", "videocam"),
-            ("Building", "construction"),
-            ("Graphics", "photo_library"),
-            ("2DGraphics", "photo_library"),
-            ("RasterGraphics", "photo_library"),
-            ("TV", "tv"),
-            ("System", "host"),
-            ("Office", "content_paste"),
-        ];
-        let i = self.inner.lock().unwrap();
-        let low = app_id.to_lowercase();
-        let e = i.apps.iter().find(|a| {
-            let id = a.id.to_lowercase();
-            id == low || a.wm_class == low || id.ends_with(&format!(".{low}")) || id.rsplit('.').next() == Some(low.as_str())
-        })?;
-        MAP.iter().find(|(c, _)| e.categories.iter().any(|x| x == c)).map(|(_, i)| *i)
     }
 
     fn update(&self) {

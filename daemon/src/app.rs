@@ -68,32 +68,11 @@ impl App {
             "night": misc.night,
         });
         drop(misc);
-        let mut v = v;
-        v["icons"] = serde_json::Value::from(self.status_icon_order());
         self.hub.publish("status", &v);
     }
 
     pub fn ui_active_height(&self) -> i32 {
         self.ui.active_height_pub()
-    }
-
-    /// Status icons currently shown in the bar, top to bottom (lockStatus
-    /// collapses when neither Caps nor Num Lock is on, as in Caelestia).
-    pub fn status_icon_order(&self) -> Vec<String> {
-        let (caps, num) = self.bat.lock_keys();
-        let bat_present = self.bat.json()["present"].as_bool().unwrap_or(false);
-        cfg()
-            .bar
-            .status
-            .icons
-            .iter()
-            .filter(|i| match i.as_str() {
-                "lockStatus" => caps || num,
-                "battery" => bat_present,
-                _ => true,
-            })
-            .map(|i| i.to_lowercase())
-            .collect()
     }
 }
 
@@ -171,6 +150,7 @@ async fn async_main() -> anyhow::Result<()> {
     tokio::spawn(crate::sysmon::run());
     tokio::spawn(crate::info::run());
     tokio::spawn(crate::clock::run());
+    tokio::spawn(crate::eww::restart_on_crash());
     tokio::spawn(async { app.launcher.preload().await });
 
     // EWW last: it immediately spawns its listeners which need the socket.

@@ -142,30 +142,7 @@ fn remove_in(root: &mut Value, key: &str) {
 /// Publish the effective configuration for the UI (`cfg` topic).
 pub fn publish() {
     let c = crate::app::cfg();
-    if let Ok(mut v) = serde_json::to_value(&*c) {
-        // Quick toggles laid out like Caelestia: one row, or two rows
-        // (ceil(n/2) + rest) when there are more than six.
-        let t = &c.utilities.toggles;
-        let ids: Vec<&str> = [
-            (t.wifi, "wifi"),
-            (t.bluetooth, "bluetooth"),
-            (t.mic, "mic"),
-            (t.settings, "settings"),
-            (t.game_mode, "gameMode"),
-            (t.dnd, "dnd"),
-            (t.vpn, "vpn"),
-        ]
-        .iter()
-        .filter(|(on, _)| *on)
-        .map(|(_, id)| *id)
-        .collect();
-        let rows: Vec<Vec<&str>> = if ids.len() > 6 {
-            let split = ids.len().div_ceil(2);
-            vec![ids[..split].to_vec(), ids[split..].to_vec()]
-        } else {
-            vec![ids]
-        };
-        v["toggleRows"] = serde_json::json!(rows);
+    if let Ok(v) = serde_json::to_value(&*c) {
         app().hub.publish("cfg", &v);
     }
 }

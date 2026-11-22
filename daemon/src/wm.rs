@@ -1,9 +1,9 @@
 //! driftwm integration over its JSON IPC socket.
 //!
 //! driftwm has no workspaces: it is one infinite canvas. Its *bookmarks* are
-//! exported as workspaces (ext-workspace-v1), so the bar shows bookmarks the
-//! same way Caelestia shows Hyprland workspaces: shapes for each, a morphing
-//! indicator on the active one, and the window icons that live near it.
+//! exported as workspaces (ext-workspace-v1), so the bar shows bookmarks as
+//! DMS shows workspaces: a wide primary pill on the active one, brighter
+//! pills where windows live.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -83,15 +83,8 @@ struct Inner {
     layout: String,
     layout_short: String,
     last_state: Option<StateInfo>,
-    shape: usize,
 }
 
-/// Material 3 shapes for the focused workspace (eww/assets/shapes/*.svg);
-/// a random one is picked on every focus change, like Caelestia.
-const SHAPES: &[&str] = &[
-    "slanted", "oval", "pill", "triangle", "arrow", "diamond", "pentagon", "gem", "verysunny", "sunny", "cookie4", "cookie6",
-    "cookie7", "cookie9", "cookie12", "clover4", "softburst", "ghostish",
-];
 
 #[derive(Default)]
 pub struct Wm {
@@ -129,43 +122,6 @@ fn natural_key(s: &str) -> (u64, String) {
     (s.parse::<u64>().unwrap_or(u64::MAX), s.to_string())
 }
 
-/// Material symbol for an app, following Caelestia's category heuristics.
-pub fn app_category_icon(app_id: &str) -> &'static str {
-    let a = app_id.to_lowercase();
-    let has = |k: &[&str]| k.iter().any(|x| a.contains(x));
-    if has(&["foot", "kitty", "alacritty", "wezterm", "terminal", "konsole", "ghostty", "xterm", "ptyxis"]) {
-        "terminal"
-    } else if has(&["firefox", "zen", "chrom", "brave", "vivaldi", "librewolf", "browser", "qutebrowser", "epiphany"]) {
-        "public"
-    } else if has(&["code", "codium", "zed", "nvim", "neovide", "emacs", "jetbrains", "idea", "kate", "gedit", "sublime"]) {
-        "code"
-    } else if has(&["discord", "vesktop", "telegram", "signal", "whatsapp", "element", "slack", "teams", "thunderbird"]) {
-        "forum"
-    } else if has(&["spotify", "feishin", "music", "rhythmbox", "elisa", "tidal", "cider", "amberol"]) {
-        "music_note"
-    } else if has(&["mpv", "vlc", "celluloid", "video", "totem", "haruna"]) {
-        "play_circle"
-    } else if has(&["thunar", "nautilus", "dolphin", "files", "nemo", "pcmanfm", "yazi"]) {
-        "folder"
-    } else if has(&["steam", "lutris", "heroic", "game", "minecraft", "prism"]) {
-        "sports_esports"
-    } else if has(&["gimp", "krita", "inkscape", "blender", "photo", "darktable"]) {
-        "palette"
-    } else if has(&["obs"]) {
-        "videocam"
-    } else if has(&["pavucontrol", "pwvucontrol"]) {
-        "volume_up"
-    } else if has(&["btop", "htop", "monitor", "resources"]) {
-        "monitor_heart"
-    } else if has(&["settings", "control", "nm-connection"]) {
-        "settings"
-    } else if has(&["office", "writer", "calc", "impress", "onlyoffice", "obsidian", "notion", "todoist", "evince", "zathura", "okular"]) {
-        "description"
-    } else {
-        "terminal"
-    }
-}
-
 impl Wm {
     pub fn kb_json(&self) -> Value {
         let i = self.inner.lock().unwrap();
@@ -200,14 +156,6 @@ impl Wm {
 
         let (kb_changed, kb_switched) = {
             let mut i = self.inner.lock().unwrap();
-            if i.active_bookmark != st.active_bookmark {
-                let seed = crate::util::now_ms() as usize ^ (i.shape.wrapping_mul(2654435761));
-                let mut next = seed % SHAPES.len();
-                if next == i.shape {
-                    next = (next + 1) % SHAPES.len();
-                }
-                i.shape = next;
-            }
             i.active_bookmark = st.active_bookmark.clone();
             let changed = i.layout != st.layout || i.layout_short != st.layout_short;
             // A real switch (not the first layout report at startup).
@@ -250,7 +198,6 @@ impl Wm {
         let c = crate::app::cfg();
         let wcfg = &c.bar.workspaces;
         let shown = wcfg.shown.max(1);
-        let max_icons = if wcfg.show_windows { wcfg.max_window_icons } else { 0 };
         let (vw, vh) = out.as_ref().map(|o| (o.size[0] as f64, o.size[1] as f64)).unwrap_or((1920.0, 1080.0));
         let active = out.as_ref().and_then(|o| o.active_bookmark.clone()).or_else(|| st.active_bookmark.clone());
 
@@ -259,46 +206,17 @@ impl Wm {
         for (idx, (name, bx, by)) in i.bookmarks.iter().take(shown).enumerate() {
             // A bookmark is "occupied" when a window overlaps the viewport-sized
             // area centred on it.
-            let icons: Vec<&'static str> = live
-                .iter()
-                .filter(|w| {
-                    let (wx, wy) = (w.position[0] as f64, w.position[1] as f64);
-                    let (hw, hh) = (w.size[0] as f64 / 2.0, w.size[1] as f64 / 2.0);
-                    (wx - bx).abs() < vw / 2.0 + hw && (wy - by).abs() < vh / 2.0 + hh
-                })
-                .take(max_icons.max(1))
-                .map(|w| app().launcher.category_icon(&w.app_id).unwrap_or_else(|| app_category_icon(&w.app_id)))
-                .collect();
+            let occupied = live.iter().any(|w| {
+                let (wx, wy) = (w.position[0] as f64, w.position[1] as f64);
+                let (hw, hh) = (w.size[0] as f64 / 2.0, w.size[1] as f64 / 2.0);
+                (wx - bx).abs() < vw / 2.0 + hw && (wy - by).abs() < vh / 2.0 + hh
+            });
             let is_active = active.as_deref() == Some(name.as_str());
-            if !wcfg.show_unoccupied && !is_active && icons.is_empty() {
+            if !wcfg.show_unoccupied && !is_active && !occupied {
                 continue;
             }
-            let icons: Vec<&str> = icons.into_iter().take(max_icons).collect();
-            wss.push(json!({
-                "name": name,
-                "i": idx,
-                "active": is_active,
-                "occupied": !icons.is_empty(),
-                "icons": icons,
-            }));
+            wss.push(json!({ "name": name, "i": idx, "active": is_active, "occupied": occupied }));
         }
-        let active_idx = if wcfg.active_indicator {
-            wss.iter().position(|w| w["active"] == true).map(|x| x as i64).unwrap_or(-1)
-        } else {
-            -1
-        };
-        // Indicator geometry (keep in sync with scss/_bar.scss): each slot is
-        // a 32px shape area plus 20px per window icon (+4px padding), 4px apart.
-        let slot_h = |w: &Value| -> i64 {
-            let n = w["icons"].as_array().map(|a| a.len()).unwrap_or(0) as i64;
-            32 + if n > 0 { n * 20 + 4 } else { 0 }
-        };
-        let (ind_top, ind_h) = if active_idx >= 0 {
-            let top: i64 = wss.iter().take(active_idx as usize).map(|w| slot_h(w) + 4).sum();
-            (top, slot_h(&wss[active_idx as usize]))
-        } else {
-            (0, 32)
-        };
         let focused = st.windows.iter().find(|w| w.is_focused);
         let fs = st.fullscreen.first();
         let (title, app_id) = match (focused, fs) {
@@ -316,18 +234,12 @@ impl Wm {
         let v = json!({
             "connected": i.connected,
             "workspaces": wss,
-            "activeIdx": active_idx,
-            "indTop": ind_top,
-            "listH": wss.iter().map(slot_h).sum::<i64>() + 4 * (wss.len() as i64 - 1).max(0),
-            "indH": ind_h,
             "activeName": active.unwrap_or_default(),
-            "shape": SHAPES[i.shape % SHAPES.len()],
             "window": {
                 "title": if title.is_empty() { "Desktop".to_string() } else { title },
                 "app": app_id,
                 "appName": app_name,
                 "appIcon": app_icon,
-                "icon": if app_id.is_empty() { "desktop_windows" } else { app().launcher.category_icon(&app_id).unwrap_or_else(|| app_category_icon(&app_id)) },
                 "id": focused.map(|w| w.id).unwrap_or(0),
             },
             "windowCount": live.len(),

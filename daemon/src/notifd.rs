@@ -302,7 +302,8 @@ impl Notifd {
                     }
                 }
             };
-            let popup = (!dnd || critical || n.toast) && fs_ok;
+            // No popups while the notification center itself is open (DMS).
+            let popup = (!dnd || critical || n.toast) && fs_ok && !app().ui.is_shown("notifcenter");
             // Keep at most utilities.maxToasts toast popups on screen.
             if popup && n.toast {
                 let max = crate::app::cfg().utilities.max_toasts.max(1);
@@ -363,6 +364,14 @@ impl Notifd {
     }
 
     /// Slide a popup out (keeps it in history).
+    /// Slide every popup away (the notification center was opened).
+    pub fn hide_all_popups(&self) {
+        let ids: Vec<u32> = self.inner.lock().unwrap().slots.iter().flatten().filter(|s| !s.closing).map(|s| s.id).collect();
+        for id in ids {
+            tokio::spawn(async move { app().notifs.hide_popup(id).await });
+        }
+    }
+
     pub async fn hide_popup(&self, id: u32) {
         let k = {
             let mut i = self.inner.lock().unwrap();

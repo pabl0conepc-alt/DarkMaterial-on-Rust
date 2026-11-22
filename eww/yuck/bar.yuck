@@ -82,7 +82,7 @@
 (defwidget bar-mem []
   (bar-stat :icon "memory_alt" :value {load.mem}))
 (defwidget bar-idle []
-  (bar-icon-pill :icon {status.idleInhibit ? "coffee" : "coffee"} :active {status.idleInhibit} :onclick "dmr idle-inhibit"))
+  (bar-icon-pill :icon "coffee" :active {status.idleInhibit} :onclick "dmr idle-inhibit"))
 (defwidget bar-power []
   (bar-icon-pill :icon "power_settings_new" :onclick "dmr toggle powermenu"))
 

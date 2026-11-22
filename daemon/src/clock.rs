@@ -14,6 +14,29 @@ use crate::app::app;
 
 /// Woken when the dash starts or stops showing the media position.
 pub static WAKE: tokio::sync::Notify = tokio::sync::Notify::const_new();
+/// Woken after resume: tokio's timers use the monotonic clock, which stops
+/// while suspended, so the minute timer would be late by the time slept.
+static RESUMED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+
+/// logind `PrepareForSleep(false)` = the machine just woke up.
+async fn watch_resume() {
+    use futures_util::StreamExt;
+    let Some(conn) = app().system_bus.get() else { return };
+    let Ok(rule) = zbus::MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface("org.freedesktop.login1.Manager")
+        .member("PrepareForSleep")
+        .build()
+    else {
+        return;
+    };
+    let Ok(mut stream) = crate::dbus::signals_rule(conn, rule).await else { return };
+    while let Some(Ok(msg)) = stream.next().await {
+        if let Ok(false) = msg.body().deserialize::<bool>() {
+            RESUMED.notify_one();
+        }
+    }
+}
 
 fn strftime(fmt: &str, t: libc::time_t) -> String {
     let mut tm: libc::tm = unsafe { std::mem::zeroed() };
@@ -46,13 +69,16 @@ fn mmss(s: f64) -> String {
 }
 
 pub async fn run() {
-    // Clock: re-arm on every minute boundary (also after suspend: the sleep
-    // is short enough that a stale minute lasts at most until the next one).
+    // Clock: re-arm on every minute boundary, and right after a resume.
+    tokio::spawn(watch_resume());
     tokio::spawn(async {
         loop {
             publish_clock();
             let secs = now() % 60;
-            tokio::time::sleep(Duration::from_millis(((60 - secs) as u64) * 1000 + 50)).await;
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_millis(((60 - secs) as u64) * 1000 + 50)) => {},
+                _ = RESUMED.notified() => {},
+            }
         }
     });
     // Media position.

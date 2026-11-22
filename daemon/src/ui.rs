@@ -339,6 +339,9 @@ impl Ui {
         if k == "controlcenter" {
             tokio::spawn(async { app().bat.refresh_profile().await });
         }
+        if k == "notifcenter" {
+            app().notifs.hide_all_popups();
+        }
     }
 
     pub async fn hide(&self, k: &'static str) {
@@ -453,12 +456,7 @@ impl Ui {
             "restart" => {
                 tokio::spawn(async {
                     tokio::time::sleep(Duration::from_millis(300)).await;
-                    let a = app();
-                    a.eww.kill().await;
-                    a.eww.start().await;
-                    a.ui.st.lock().unwrap().panels.clear();
-                    a.ui.st.lock().unwrap().catcher_mapped = false;
-                    a.ui.open_static().await;
+                    app().ui.restart_shell().await;
                 });
                 Ok(String::new())
             }
@@ -469,6 +467,21 @@ impl Ui {
             "poweroff" => crate::server::session("shutdown").await,
             other => crate::server::session(other).await,
         }
+    }
+
+    /// Restart EWW from scratch (power menu "Restart Shell", or EWW died).
+    pub async fn restart_shell(&self) {
+        let a = app();
+        a.eww.kill().await;
+        a.eww.start().await;
+        {
+            let mut st = self.st.lock().unwrap();
+            st.panels.clear();
+            st.catcher_mapped = false;
+            st.static_open.clear();
+        }
+        self.publish();
+        self.open_static().await;
     }
 
     // ---- OSD ----

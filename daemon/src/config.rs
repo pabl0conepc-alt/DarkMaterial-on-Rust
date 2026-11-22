@@ -84,12 +84,7 @@ section!(ScrollActions {
 section!(BarWorkspaces {
     /// Number of bookmark "workspaces" shown in the bar.
     shown: usize = 5,
-    active_indicator: bool = true,
-    active_trail: bool = true,
-    occupied_bg: bool = false,
     show_unoccupied: bool = true,
-    show_windows: bool = true,
-    max_window_icons: usize = 5,
 });
 section!(BarActiveWindow {
     compact: bool = false,
@@ -232,16 +227,12 @@ section!(Services {
     weather_location: String = String::new(),
     /// "auto" | "celsius" | "fahrenheit"
     weather_units: String = "auto".into(),
-    /// "celsius" | "fahrenheit"
-    sensor_units: String = "celsius".into(),
     /// "binary" | "decimal"
     data_units: String = "binary".into(),
     audio_increment: f64 = 0.1,
     brightness_increment: f64 = 0.1,
     max_volume: f64 = 1.0,
     default_player: String = "Spotify".into(),
-    /// "auto" | "nvidia" | "amd" | "intel" | "none"
-    gpu_type: String = "auto".into(),
     smart_scheme: bool = true,
     /// "auto" | "12h" | "24h"
     clock_format: String = "auto".into(),

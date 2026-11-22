@@ -63,6 +63,7 @@ Por que gasta pouco:
 - **Barra gerada sob medida.** O daemon escreve no `_gen.yuck` só os widgets listados em `bar.left/center/right`; nada de ramos escondidos ocupando memória.
 - **EWW com o patch do Sheels** (`nix/eww-dmr.patch`): memoiza o valor de cada propriedade e cada lista de `for` (o EWW original chama todos os setters GTK a cada atualização, mesmo com valor igual) — ~8× menos CPU por atualização; corrige `:visible`; adiciona `:onkeypress`/`:autofocus` no `input`; trunca texto colado em uma linha.
 - **Listeners minúsculos:** cada tópico é um `dmr listen <tópico>` só com std (~0,5 MiB); só os tópicos usados por janelas abertas ficam ativos.
+- **Sem processos órfãos:** os comandos ao EWW usam `--no-daemonize` (nunca sobem um EWW paralelo), cada `dmr listen` sai sozinho quando o EWW some, e se o EWW cair o daemon o reinicia e reconstrói a barra e os painéis.
 - **fontconfig próprio para o EWW**, isolado do GTK CSS do usuário, sem ponte de acessibilidade e sem GL.
 
 ---

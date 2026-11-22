@@ -16,6 +16,22 @@ pub fn listen(topic: &str) -> i32 {
         eprintln!("usage: dmr listen <topic>");
         return 2;
     }
+    // Exit as soon as nobody reads our stdout any more (EWW quit or was
+    // killed): a write to a closed pipe is only noticed on the next topic
+    // change, and the reconnect loop below would otherwise run forever.
+    let _ = std::thread::Builder::new().stack_size(16 * 1024).spawn(|| {
+        let mut fds = libc::pollfd { fd: 1, events: 0, revents: 0 };
+        loop {
+            // POLLERR/POLLHUP are always reported, even with events = 0.
+            let n = unsafe { libc::poll(&mut fds, 1, -1) };
+            if n > 0 && fds.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL) != 0 {
+                std::process::exit(0);
+            }
+            if n < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
+                return;
+            }
+        }
+    });
     let stdout = std::io::stdout();
     let mut backoff = 100;
     loop {
